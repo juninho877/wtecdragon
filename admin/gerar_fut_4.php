@@ -30,10 +30,10 @@ if (empty($jogos)) {
     exit;
 }
 
-$width = 800;
+$width = 1080;
 $heightPorJogo = 140;
 $padding = 15;
-$espacoExtra = 400;
+$espacoExtra = 300;
 $fontLiga = __DIR__ . '/fonts/BebasNeue-Regular.ttf';
 $jogosPorBanner = 5;
 $gruposDeJogos = array_chunk(array_keys($jogos), $jogosPorBanner);
