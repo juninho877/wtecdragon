@@ -6,8 +6,8 @@ class Database {
     
     // Configurações do MySQL - ALTERE ESTAS CONFIGURAÇÕES
     private $host = 'localhost';
-    private $dbname = 'teste';
-    private $username = 'teste';
+    private $dbname = 'dragon';
+    private $username = 'dragon';
     private $password = '#D_p2ahElBb7zn6u';
     private $charset = 'utf8mb4';
     
