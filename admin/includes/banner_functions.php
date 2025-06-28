@@ -523,7 +523,7 @@ function _gerarBannerModel1($userId, $jogos, $grupoJogos, $width, $height, $padd
     
     setlocale(LC_TIME, 'pt_BR.utf8', 'pt_BR.UTF-8', 'pt_BR', 'portuguese');
     $dataTexto = mb_strtoupper(strftime('%A - %d de %B'));
-    imagettftext($im, 82, 0, centralizarTextoX($width, 82, $fonteTitulo, $titulo1), 120, $corBranco, $fonteTitulo, $titulo1);
+    imagettftext($im, 82, 0, centralizarTextoX($width, 82, $fonteTitulo, $titulo1), 140, $corBranco, $fonteTitulo, $titulo1);
     
     $corBranco2 = imagecolorallocate($im, 236, 240, 243);
     $corTexto = imagecolorallocate($im, 0, 0, 0);
@@ -533,18 +533,18 @@ function _gerarBannerModel1($userId, $jogos, $grupoJogos, $width, $height, $padd
     $retanguloX = ($width - $retanguloLargura) / 2;
     $retanguloY = 348; 
     
-    desenhar_retangulo_arredondado($im, $retanguloX, $retanguloY, $retanguloLargura, $retanguloAltura, $cantoRaio, $corBranco2);
+    //desenhar_retangulo_arredondado($im, $retanguloX, $retanguloY, $retanguloLargura, $retanguloAltura, $cantoRaio, $corBranco2);
     
-    $tamanhoFonte = 78;
+    $tamanhoFonte = 55;
     $textoX = centralizarTextoX($width, $tamanhoFonte, $fonteData, $dataTexto) - 33;
-    $textoY_preciso = $retanguloY + 45;
+    $textoY_preciso = 165;
     
-    desenharTexto($im, $dataTexto, $textoX, $textoY_preciso, $corTexto, $tamanhoFonte);
+    desenharTexto($im, $dataTexto, $textoX, $textoY_preciso, $corBranco, $tamanhoFonte);
 
     // Logo das ligas (cache)
     if ($logoLiga === null) {
-        $ligas_url = 'https://i.ibb.co/Cp8ck2H3/Rodape-liga-1440.png';
-        $logoLiga = @imagecreatefrompng($ligas_url);
+        //$ligas_url = 'https://i.ibb.co/Cp8ck2H3/Rodape-liga-1440.png';
+        //$logoLiga = @imagecreatefrompng($ligas_url);
     }
     
     if ($logoLiga) {
@@ -665,8 +665,8 @@ function _gerarBannerModel2($userId, $jogos, $grupoJogos, $width, $height, $padd
     
     // Logo das ligas
     if ($logoLiga === null) {
-        $ligas_url = 'https://i.ibb.co/ycxpN2rc/Rodape-liga-720.png';
-        $logoLiga = @imagecreatefrompng($ligas_url);
+        //$ligas_url = 'https://i.ibb.co/ycxpN2rc/Rodape-liga-720.png';
+        //$logoLiga = @imagecreatefrompng($ligas_url);
     }
     
     if ($logoLiga) {
