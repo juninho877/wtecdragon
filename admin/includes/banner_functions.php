@@ -439,7 +439,7 @@ function _gerarBannerModel1($userId, $jogos, $grupoJogos, $width, $height, $padd
         }
     }
     
-    $yAtual = $padding + 480;
+    $yAtual = $padding + 570;
 
     foreach ($grupoJogos as $idx) {
         if (!isset($jogos[$idx])) continue;
@@ -562,7 +562,7 @@ function _gerarBannerModel1($userId, $jogos, $grupoJogos, $width, $height, $padd
             imagealphablending($logoRedimensionada, false); 
             imagesavealpha($logoRedimensionada, true);
             imagecopyresampled($logoRedimensionada, $logoUsuario, 0, 0, 0, 0, $newW, $newH, $w, $h);
-            imagecopy($im, $logoRedimensionada, 10, 5, 0, 0, $newW, $newH);
+            imagecopy($im, $logoRedimensionada, 555, 235, 0, 0, $newW, $newH);
             imagedestroy($logoRedimensionada);
         }
         imagedestroy($logoUsuario);
