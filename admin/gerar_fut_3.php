@@ -30,10 +30,10 @@ if (empty($jogos)) {
     exit;
 }
 
-$width = 1440;
+$width = 1080;
 $heightPorJogo = 240;
 $padding = 15;
-$espacoExtra = 649;
+$espacoExtra = 340;
 $fontLiga = __DIR__ . '/fonts/MANDATOR.ttf';
 $jogosPorBanner = 5;
 $gruposDeJogos = array_chunk(array_keys($jogos), $jogosPorBanner);
