@@ -17,6 +17,27 @@ $imageCache = [];
 // Incluir a classe UserImage
 require_once __DIR__ . '/../classes/UserImage.php';
 
+function imagefilledroundedrect($im, $x1, $y1, $x2, $y2, $radius, $color) {
+    // Desenha os retângulos do meio
+    imagefilledrectangle($im, $x1 + $radius, $y1, $x2 - $radius, $y2, $color);
+    imagefilledrectangle($im, $x1, $y1 + $radius, $x2, $y2 - $radius, $color);
+    // Desenha os arcos dos cantos
+    imagefilledarc($im, $x1 + $radius, $y1 + $radius, $radius * 2, $radius * 2, 180, 270, $color, IMG_ARC_PIE);
+    imagefilledarc($im, $x2 - $radius, $y1 + $radius, $radius * 2, $radius * 2, 270, 360, $color, IMG_ARC_PIE);
+    imagefilledarc($im, $x1 + $radius, $y2 - $radius, $radius * 2, $radius * 2, 90, 180, $color, IMG_ARC_PIE);
+    imagefilledarc($im, $x2 - $radius, $y2 - $radius, $radius * 2, $radius * 2, 0, 90, $color, IMG_ARC_PIE);
+}
+function removerAcentos($texto) {
+    // Passo 1: Remove acentos, como antes (usando o método que funciona no seu servidor)
+    $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
+
+    // Passo 2: Remove os parênteses usando uma expressão regular.
+    // O padrão /[()]/ significa "encontre o caractere '(' ou o caractere ')'"
+    // e substitua por nada ('').
+    $texto = preg_replace('/[()]/', '', $texto);
+
+    return $texto;
+}
 function desenhar_retangulo_arredondado($image, $x, $y, $width, $height, $radius, $color) {
     $x1 = $x; $y1 = $y; $x2 = $x + $width; $y2 = $y + $height;
     if ($radius > $width / 2) $radius = $width / 2;
@@ -29,7 +50,19 @@ function desenhar_retangulo_arredondado($image, $x, $y, $width, $height, $radius
     imagefilledarc($image, $x1 + $radius, $y2 - $radius, $radius * 2, $radius * 2, 90, 180, $color, IMG_ARC_PIE);
     imagefilledarc($image, $x2 - $radius, $y2 - $radius, $radius * 2, $radius * 2, 0, 90, $color, IMG_ARC_PIE);
 }
+function limitarTexto($texto, $limite, $sufixo = '...') {
+    // Verifica se o texto já é menor ou igual ao limite. Usa mb_strlen para contar caracteres corretamente.
+    if (mb_strlen($texto) <= $limite) {
+        return $texto;
+    }
 
+    // Corta o texto, garantindo espaço para o sufixo.
+    // Usa mb_substr para cortar a string sem quebrar caracteres especiais.
+    $textoCortado = mb_substr($texto, 0, $limite - mb_strlen($sufixo));
+    
+    // Retorna o texto cortado com o sufixo no final.
+    return $textoCortado . $sufixo;
+}
 function carregarImagemDeUrl(string $url, int $maxSize) {
     global $imageCache;
     
@@ -390,10 +423,10 @@ function generateFootballBannerResource($userId, $bannerModel, $grupoIndex, $all
             return _gerarBannerModel2($userId, $allJogos, $grupoJogos, $width, $height, $padding, $heightPorJogo, $fontLiga);
             
         case 3:
-            $width = 1440;
+            $width = 1080;
             $heightPorJogo = 240;
-            $espacoExtra = 649;
-            $height = max(count($grupoJogos) * $heightPorJogo + $padding * 2 + $espacoExtra, 2030);
+            $espacoExtra = 340;
+            $height = max(count($grupoJogos) * $heightPorJogo + $padding * 2 + $espacoExtra, 1750);
             return _gerarBannerModel3($userId, $allJogos, $grupoJogos, $width, $height, $padding, $heightPorJogo, $fontLiga);
             
         case 4:
@@ -714,7 +747,7 @@ function _gerarBannerModel3($userId, $jogos, $grupoJogos, $width, $height, $padd
     $preto = imagecolorallocate($im, 0, 0, 0);
     $branco = imagecolorallocate($im, 255, 255, 255);
     
-    // Carregar fundo do usuário
+    // 1. FUNDO DO BANNER: Lógica original mantida, carrega por UserID
     $fundo = loadUserImage($userId, 'background_banner_3');
     if ($fundo) {
         imagecopyresampled($im, $fundo, 0, 0, 0, 0, $width, $height, imagesx($fundo), imagesy($fundo));
@@ -723,21 +756,21 @@ function _gerarBannerModel3($userId, $jogos, $grupoJogos, $width, $height, $padd
         imagefill($im, 0, 0, $branco);
     }
     
-    // Cache para imagens estáticas
+    // 2. CARD DE JOGO: Lógica original restaurada, carrega por UserID com fallback
     static $fundoJogo = null;
-    static $logoLiga = null;
-    
     if ($fundoJogo === null) {
         $fundoJogo = loadUserImage($userId, 'card_banner_3');
         if (!$fundoJogo) {
-            // Fallback para imagem padrão
+            // Fallback para imagem padrão do primeiro script
             $fundoJogoPath = __DIR__ . '/../wtec/card/card_banner_3.png';
             $fundoJogo = file_exists($fundoJogoPath) ? imagecreatefrompng($fundoJogoPath) : false;
         }
     }
     
-    $yAtual = $padding + 480;
+    // Posição Y inicial do novo layout
+    $yAtual = $padding + 320;
 
+    // Loop com a NOVA lógica de layout
     foreach ($grupoJogos as $idx) {
         if (!isset($jogos[$idx])) continue;
 
@@ -750,117 +783,112 @@ function _gerarBannerModel3($userId, $jogos, $grupoJogos, $width, $height, $padd
         $time2 = $jogo['time2'] ?? 'Time 2';
         $liga = $jogo['competicao'] ?? 'Liga';
         $hora = $jogo['horario'] ?? '';
+        $encoding = 'UTF-8';
         
         $escudo1_url = LOGO_OVERRIDES[$time1] ?? ($jogo['img_time1_url'] ?? '');
         $escudo2_url = LOGO_OVERRIDES[$time2] ?? ($jogo['img_time2_url'] ?? '');
         
-        $imgEscudo1 = carregarEscudo($time1, $escudo1_url, 180);
-        $imgEscudo2 = carregarEscudo($time2, $escudo2_url, 180);
+        $imgEscudo1 = carregarEscudo($time1, $escudo1_url, 115);
+        $imgEscudo2 = carregarEscudo($time2, $escudo2_url, 115);
         
         $yTop = $yAtual + 20;
-        if($imgEscudo1) imagecopy($im, $imgEscudo1, 165, $yTop + 15, 0, 0, imagesx($imgEscudo1), imagesy($imgEscudo1));
-        if($imgEscudo2) imagecopy($im, $imgEscudo2, 1130, $yTop + 15, 0, 0, imagesx($imgEscudo2), imagesy($imgEscudo2));
+        if($imgEscudo1) imagecopy($im, $imgEscudo1, 85, $yTop + 35, 0, 0, imagesx($imgEscudo1), imagesy($imgEscudo1));
+        if($imgEscudo2) imagecopy($im, $imgEscudo2, 880, $yTop + 35, 0, 0, imagesx($imgEscudo2), imagesy($imgEscudo2));
         
-        // Limpar memória apenas se não estiver no cache
-        if($imgEscudo1 && !isset($GLOBALS['imageCache'][md5($escudo1_url . 180)])) imagedestroy($imgEscudo1);
-        if($imgEscudo2 && !isset($GLOBALS['imageCache'][md5($escudo2_url . 180)])) imagedestroy($imgEscudo2);
+        // Gerenciamento de memória respeitando o cache (lógica original)
+        if($imgEscudo1 && !isset($GLOBALS['imageCache'][md5($escudo1_url . 115)])) imagedestroy($imgEscudo1);
+        if($imgEscudo2 && !isset($GLOBALS['imageCache'][md5($escudo2_url . 115)])) imagedestroy($imgEscudo2);
         
+        // Seção de texto dos times com o novo layout
         $fonteNomes = __DIR__ . '/../fonts/CalSans-Regular.ttf';
-        $tamanhoNomes = 25; $corNomes = $preto;
-        $tamanhoHora = 50;
-        $textoLinha1 = mb_strtoupper($time1);
-        $textoLinha2 = mb_strtoupper($time2);
+        $corNomes = $branco;
+        $tamanhoNomes = 22;
+        $limiteCaracteresNome = 14;
 
-        $eixoCentralColuna = 500;
-        $eixoCentralColuna2 = 940;
-        $eixoCentralColuna3 = 720;
+        $nomeLimpo1 = removerAcentos(mb_strtoupper($time1, $encoding));
+        $nomeLimpo2 = removerAcentos(mb_strtoupper($time2, $encoding));
+        $textoFinal1 = limitarTexto($nomeLimpo1, $limiteCaracteresNome);
+        $textoFinal2 = limitarTexto($nomeLimpo2, $limiteCaracteresNome);
+
+        $eixoCentralColuna = 345;
+        $eixoCentralColuna2 = 745;
         
-        $bbox1 = imagettfbbox($tamanhoNomes, 0, $fonteNomes, $textoLinha1);
+        $bbox1 = imagettfbbox($tamanhoNomes, 0, $fonteNomes, $textoFinal1);
         $xPos1 = $eixoCentralColuna - (($bbox1[2] - $bbox1[0]) / 2);
-        $bbox2 = imagettfbbox($tamanhoNomes, 0, $fonteNomes, $textoLinha2);
+        desenharTexto($im, $textoFinal1, $xPos1, $yTop + 80, $corNomes, $tamanhoNomes);
+        
+        $bbox2 = imagettfbbox($tamanhoNomes, 0, $fonteNomes, $textoFinal2);
         $xPos2 = $eixoCentralColuna2 - (($bbox2[2] - $bbox2[0]) / 2);
-        $bbox3 = imagettfbbox($tamanhoHora, 0, $fonteNomes, $hora);
-        $xPos3 = $eixoCentralColuna3 - (($bbox3[2] - $bbox3[0]) / 2);
-        
-        desenharTexto($im, $textoLinha1, $xPos1, $yTop + 85, $corNomes, $tamanhoNomes);
-        desenharTexto($im, $textoLinha2, $xPos2, $yTop + 85, $corNomes, $tamanhoNomes);
-        desenharTexto($im, $hora, $xPos3, $yTop - 10, $branco, $tamanhoHora);
-        
-        $canaisDoJogo = $jogo['canais'];
+        desenharTexto($im, $textoFinal2, $xPos2, $yTop + 80, $corNomes, $tamanhoNomes);
+
+        // Seção Liga e Hora com o novo layout
+        $textoLiga = removerAcentos(mb_strtoupper($liga, $encoding));
+        desenharTexto($im, $textoLiga, centralizarTextoX($width, 20, $fonteNomes, $textoLiga), $yTop + 35, $preto, 20);
+        desenharTexto($im, $hora, centralizarTextoX($width, 38, $fonteNomes, $hora), $yTop + 65, $branco, 38);
+
+        // Seção Canais com o novo layout
+        $canaisDoJogo = array_slice($jogo['canais'] ?? [], 0, 4);
         if (!empty($canaisDoJogo)) {
             $logosParaDesenhar = [];
             $larguraTotalBloco = 0; $espacoEntreLogos = 5;
-            
             foreach ($canaisDoJogo as $canal) {
-                if (!empty($canal['img_url'])) {
-                    $logoCanal = carregarLogoCanalComAlturaFixa($canal['img_url'], 55);
-                    if ($logoCanal) {
-                        $logosParaDesenhar[] = $logoCanal;
-                        $larguraTotalBloco += imagesx($logoCanal);
-                    }
+                if (!empty($canal['img_url']) && ($logoCanal = carregarLogoCanalComAlturaFixa($canal['img_url'], 55))) {
+                    $logosParaDesenhar[] = $logoCanal;
+                    $larguraTotalBloco += imagesx($logoCanal);
                 }
             }
-            
             if (!empty($logosParaDesenhar)) {
                 $larguraTotalBloco += (count($logosParaDesenhar) - 1) * $espacoEntreLogos;
                 $xAtual = (($width - $larguraTotalBloco) / 2);
                 foreach ($logosParaDesenhar as $logo) {
-                    imagecopy($im, $logo, (int)$xAtual, (int)($yTop + 145), 0, 0, imagesx($logo), imagesy($logo));
+                    imagecopy($im, $logo, (int)$xAtual, (int)($yTop + 128), 0, 0, imagesx($logo), imagesy($logo));
                     $xAtual += imagesx($logo) + $espacoEntreLogos;
                     imagedestroy($logo);
                 }
             }
         }
+
         $yAtual += $heightPorJogo;
     }
 
+    // Cabeçalho com o novo layout
     $fonteTitulo = __DIR__ . '/../fonts/BebasNeue-Regular.ttf';
-    $fonteData = __DIR__ . '/../fonts/RobotoCondensed-VariableFont_wght.ttf';
     $corBranco = imagecolorallocate($im, 255, 255, 255);
-    $titulo1 = "DESTAQUES DE HOJE";
-    
     setlocale(LC_TIME, 'pt_BR.utf8', 'pt_BR.UTF-8', 'pt_BR', 'portuguese');
-    $dataTexto = mb_strtoupper(strftime('%A - %d de %B'));
-    imagettftext($im, 82, 0, centralizarTextoX($width, 82, $fonteTitulo, $titulo1), 120, $corBranco, $fonteTitulo, $titulo1);
-    
-    $corBranco2 = imagecolorallocate($im, 255, 255, 255);
-    $corTexto = imagecolorallocate($im, 0, 0, 0);
-    $retanguloLargura = 1135;
-    $retanguloAltura = 130;
-    $cantoRaio = 15; 
-    $retanguloX = ($width - $retanguloLargura) / 2;
-    $retanguloY = 348; 
-    
-    desenhar_retangulo_arredondado($im, $retanguloX, $retanguloY, $retanguloLargura, $retanguloAltura, $cantoRaio, $corBranco2);
-    
-    $fontPath2 = __DIR__ . '/../fonts/CalSans-Regular.ttf';
-    $tamanhoFonte = 78;
-    $textoX = centralizarTextoX($width, $tamanhoFonte, $fontPath2, $dataTexto);
-    $textoY_preciso = $retanguloY + 45;
-    
-    desenharTexto($im, $dataTexto, $textoX, $textoY_preciso, $corTexto, $tamanhoFonte);
 
-    // Logo das ligas (cache)
-    if ($logoLiga === null) {
-        $ligas_url = 'https://i.ibb.co/W4nVKgd3/tlx.png';
-        $logoLiga = @imagecreatefrompng($ligas_url);
-    }
+    $tituloDiaSemana = mb_strtoupper(strftime('%A', time()));
+    $tamanhoFonteTitulo = 55;
+    $y_texto_titulo = 105;
+    $padding_titulo = 10;
+    $corFundoAzul = imagecolorallocate($im, 29, 78, 216);
+    $raioCanto = 18;
     
-    if ($logoLiga) {
-        imagecopy($im, $logoLiga, 0, 1740, 0, 0, imagesx($logoLiga), imagesy($logoLiga));
-    }
+    $x_texto_titulo = centralizarTextoX($width, $tamanhoFonteTitulo, $fonteTitulo, $tituloDiaSemana);
+    $bbox_titulo = imagettfbbox($tamanhoFonteTitulo, 0, $fonteTitulo, $tituloDiaSemana);
+    $x1 = $x_texto_titulo + $bbox_titulo[0] - $padding_titulo;
+    $y1 = $y_texto_titulo + $bbox_titulo[7] - $padding_titulo;
+    $x2 = $x_texto_titulo + $bbox_titulo[2] + $padding_titulo;
+    $y2 = $y_texto_titulo + $bbox_titulo[1] + $padding_titulo;
+    
+    imagefilledroundedrect($im, $x1, $y1, $x2, $y2, $raioCanto, $corFundoAzul);
+    imagettftext($im, $tamanhoFonteTitulo, 0, $x_texto_titulo, $y_texto_titulo, $corBranco, $fonteTitulo, $tituloDiaSemana);
+    
+    $dataTexto = mb_strtoupper(strftime('%d de %B'));
+    imagettftext($im, 55, 0, centralizarTextoX($width, 55, $fonteTitulo, $dataTexto), 200, $corBranco, $fonteTitulo, $dataTexto);
 
-    // Logo do usuário
+    // 3. LOGO DO USUÁRIO: Lógica original restaurada, carrega por UserID
     $logoUsuario = loadUserImage($userId, 'logo_banner_3');
     if ($logoUsuario) {
         $w = imagesx($logoUsuario); $h = imagesy($logoUsuario);
         if ($w > 0 && $h > 0) {
+            // Usando a lógica de redimensionamento original
             $scale = min(350 / $w, 350 / $h, 1.0);
             $newW = (int)($w * $scale); $newH = (int)($h * $scale);
             $logoRedimensionada = imagecreatetruecolor($newW, $newH);
             imagealphablending($logoRedimensionada, false); imagesavealpha($logoRedimensionada, true);
             imagecopyresampled($logoRedimensionada, $logoUsuario, 0, 0, 0, 0, $newW, $newH, $w, $h);
-            imagecopy($im, $logoRedimensionada, 10, 5, 0, 0, $newW, $newH);
+            // Posição do novo layout
+            imagecopy($im, $logoRedimensionada, 30, 20, 0, 0, $newW, $newH);
             imagedestroy($logoRedimensionada);
         }
         imagedestroy($logoUsuario);
