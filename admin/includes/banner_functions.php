@@ -17,6 +17,25 @@ $imageCache = [];
 // Incluir a classe UserImage
 require_once __DIR__ . '/../classes/UserImage.php';
 
+function truncateText($text, $fontSize, $fontPath, $maxWidth) {
+    // Mede a largura inicial do texto
+    $bbox = imagettfbbox($fontSize, 0, $fontPath, $text);
+    $textWidth = $bbox[2] - $bbox[0];
+    
+    // Se o texto já cabe, retorna o original
+    if ($textWidth <= $maxWidth) {
+        return $text;
+    }
+    
+    // Reduz o texto caractere por caractere até caber
+    while ($textWidth > $maxWidth && mb_strlen($text, 'UTF-8') > 1) {
+        $text = mb_substr($text, 0, -1, 'UTF-8');
+        $bbox = imagettfbbox($fontSize, 0, $fontPath, $text . '...');
+        $textWidth = $bbox[2] - $bbox[0];
+    }
+    
+    return $text . '...';
+}
 function imagefilledroundedrect($im, $x1, $y1, $x2, $y2, $radius, $color) {
     // Desenha os retângulos do meio
     imagefilledrectangle($im, $x1 + $radius, $y1, $x2 - $radius, $y2, $color);
@@ -430,10 +449,10 @@ function generateFootballBannerResource($userId, $bannerModel, $grupoIndex, $all
             return _gerarBannerModel3($userId, $allJogos, $grupoJogos, $width, $height, $padding, $heightPorJogo, $fontLiga);
             
         case 4:
-            $width = 800;
-            $heightPorJogo = 140;
-            $espacoExtra = 400;
-            $height = max(count($grupoJogos) * $heightPorJogo + $padding * 2 + $espacoExtra, 1200);
+            $width = 1080;
+            $heightPorJogo = 240;
+            $espacoExtra = 300;
+            $height = max(count($grupoJogos) * $heightPorJogo + $padding * 2 + $espacoExtra, 1900);
             return _gerarBannerModel4($userId, $allJogos, $grupoJogos, $width, $height, $padding, $heightPorJogo, $fontLiga);
             
         default:
@@ -901,213 +920,193 @@ function _gerarBannerModel3($userId, $jogos, $grupoJogos, $width, $height, $padd
  * Gera banner modelo 4 (gerar_fut_4.php) - Novo tema
  */
 function _gerarBannerModel4($userId, $jogos, $grupoJogos, $width, $height, $padding, $heightPorJogo, $fontLiga) {
-    // Criar imagem
+    // --- INICIALIZAÇÃO E CONFIGURAÇÃO DO NOVO LAYOUT ---
     $im = imagecreatetruecolor($width, $height);
-    $preto = imagecolorallocate($im, 0, 0, 0);
-    $branco = imagecolorallocate($im, 255, 255, 255);
-    
-    // Carregar fundo do usuário
+    imagealphablending($im, true);
+    imagesavealpha($im, true);
+
+    // Configurações de fonte
+    $teams_font_size = 50;
+    $comp_font_size = 28;
+    $rodape_font_size = 22;
+
+    // Configurações de tamanho de logo
+    $logo_teams_size = 160;
+    $logo_canal_size = 70;
+    $logo_vs_size = 60;
+
+    // Caminhos (usando a estrutura de diretórios do sistema original)
+    $font_path = __DIR__ . '/../fonts/BebasNeue-Regular.ttf';
+    $vs_icon_path = __DIR__ . '/../imgelementos/vs.png';
+
+    // Cores do novo layout
+    $card_color = ['r' => 0, 'g' => 0, 'b' => 0];
+    $card_text_color = imagecolorallocate($im, 255, 255, 255);
+    $champ_text_color = imagecolorallocate($im, 67, 195, 68);
+
+    // --- CARREGAMENTO DE IMAGENS PERSONALIZADAS (LÓGICA ORIGINAL) ---
+
+    // Fundo do Banner (UserID)
     $fundo = loadUserImage($userId, 'background_banner_4');
     if ($fundo) {
         imagecopyresampled($im, $fundo, 0, 0, 0, 0, $width, $height, imagesx($fundo), imagesy($fundo));
         imagedestroy($fundo);
     } else {
-        imagefill($im, 0, 0, $branco);
+        $bg_color = imagecolorallocate($im, 30, 30, 30); // Fundo padrão do novo layout
+        imagefilledrectangle($im, 0, 0, $width, $height, $bg_color);
     }
-    
-    // Cache para imagens estáticas
-    static $fundoJogo = null;
-    
-    if ($fundoJogo === null) {
-        $fundoJogo = loadUserImage($userId, 'card_banner_4');
-        if (!$fundoJogo) {
-            // Fallback para imagem padrão
-            $fundoJogoPath = __DIR__ . '/../imgelementos/fundo_jogo.png';
-            $fundoJogo = file_exists($fundoJogoPath) ? imagecreatefrompng($fundoJogoPath) : false;
+
+    // Logo Superior (UserID)
+    $logo_superior = loadUserImage($userId, 'logo_banner_4');
+    if ($logo_superior) {
+        $logo_superior_width = 500; // Largura máxima do novo layout
+        $logo_superior_height = 200; // Altura máxima do novo layout
+
+        $orig_width = imagesx($logo_superior);
+        $orig_height = imagesy($logo_superior);
+        
+        if ($orig_width > 0 && $orig_height > 0) {
+            $ratio = $orig_width / $orig_height;
+            if ($logo_superior_width / $logo_superior_height > $ratio) {
+                $logo_superior_width = $logo_superior_height * $ratio;
+            } else {
+                $logo_superior_height = $logo_superior_width / $ratio;
+            }
+            
+            $logo_x = 20; $logo_y = 20;
+            imagecopyresampled($im, $logo_superior, $logo_x, $logo_y, 0, 0, 
+                               $logo_superior_width, $logo_superior_height, 
+                               $orig_width, $orig_height);
         }
-    }
-    
-    // CONFIGURAÇÕES AJUSTÁVEIS
-    $config = [
-        'espacamento_vertical' => 10,
-        'altura_jogo' => 150,
-        'espaco_cabecalho' => 200,
-        'posicoes' => [
-            'liga' => ['x' => 130, 'y' => 17],
-            'escudo1' => ['x' => 130, 'y' => 55],
-            'escudo2' => ['x' => 625, 'y' => 55],
-            'nome_time1' => ['x' => 188, 'y' => 40],
-            'nome_time2' => ['x' => 608, 'y' => 40],
-            'vs' => ['x' => 370, 'y' => 45],
-            'data' => ['x' => 530, 'y' => 3448],
-            'horario' => ['x' => 365, 'y' => 15],
-            'canais' => ['x' => 290, 'y' => 110],
-            'logo' => ['x' => 20, 'y' => 1, 'largura' => 180],
-            'titulo1' => ['x' => 500, 'y' => 70],
-            'titulo2' => ['x' => 500, 'y' => 110],
-            'data_cabecalho' => ['x' => 300, 'y' => 180]
-        ]
-    ];
-
-    // FONTE ESPECIAL PARA OS TIMES
-    $fonteTimes = __DIR__ . '/../fonts/AvilockBold.ttf';
-    if (!file_exists($fonteTimes)) {
-        $fonteTimes = __DIR__ . '/../fonts/RobotoCondensed-Bold.ttf';
-    }
-    $tamanhoFonteTimes = 18;
-
-    $heightPorJogo = $config['altura_jogo'];
-    $espacamentoVertical = $config['espacamento_vertical'];
-    $espacoCabecalho = $config['espaco_cabecalho'];
-    $posicoes = $config['posicoes'];
-
-    // CABEÇALHO
-    $fonteTitulo = __DIR__ . '/../fonts/AvilockBold.ttf';
-    $fonteData = __DIR__ . '/../fonts/AvilockBold.ttf';
-    $corBranco = imagecolorallocate($im, 255, 255, 255);
-
-    // Logo do usuário
-    $logoUsuario = loadUserImage($userId, 'logo_banner_4');
-    if ($logoUsuario) {
-        $logoLarguraDesejada = $posicoes['logo']['largura'];
-        $logoPosX = $posicoes['logo']['x'];
-        $logoPosY = $posicoes['logo']['y'];
-        
-        $logoWidthOriginal = imagesx($logoUsuario);
-        $logoHeightOriginal = imagesy($logoUsuario);
-        $logoHeight = (int)($logoHeightOriginal * ($logoLarguraDesejada / $logoWidthOriginal));
-        
-        $logoRedimensionada = imagecreatetruecolor($logoLarguraDesejada, $logoHeight);
-        imagealphablending($logoRedimensionada, false);
-        imagesavealpha($logoRedimensionada, true);
-        imagecopyresampled($logoRedimensionada, $logoUsuario, 0, 0, 0, 0, 
-                         $logoLarguraDesejada, $logoHeight, 
-                         $logoWidthOriginal, $logoHeightOriginal);
-        
-        imagecopy($im, $logoRedimensionada, $logoPosX, $logoPosY, 
-                 0, 0, $logoLarguraDesejada, $logoHeight);
-        
-        imagedestroy($logoUsuario);
-        imagedestroy($logoRedimensionada);
+        imagedestroy($logo_superior);
     }
 
-    // Título
-    imagettftext($im, 51, 0, $posicoes['titulo1']['x'], $posicoes['titulo1']['y'], 
-                $corBranco, $fonteTitulo, "AGENDA ");
-    imagettftext($im, 36, 0, $posicoes['titulo2']['x'], $posicoes['titulo2']['y'], 
-                $corBranco, $fonteTitulo, "ESPORTIVA");
+    // --- CABEÇALHO (LÓGICA DO NOVO LAYOUT) ---
+    $timeStamp = time(); // Para os jogos de hoje
+    $diasPT = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
+    $mesesPT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
     
-    // Data
-    setlocale(LC_TIME, 'pt_BR.utf8', 'pt_BR.UTF-8', 'pt_BR', 'portuguese');
-    $dataHoje = date('Y-m-d');
-    $timestamp = strtotime($dataHoje);
-    $diaSemana = strftime('%A', $timestamp);
-    $linhaData = strtoupper($diaSemana) . ' - ' . strtoupper(strftime('%d/%B', $timestamp));
-    imagettftext($im, 47, 0, $posicoes['data_cabecalho']['x'], $posicoes['data_cabecalho']['y'], 
-                $corBranco, $fonteData, $linhaData);
+    $textoDiaMes = sprintf('%02d %s', date('d', $timeStamp), $mesesPT[date('n', $timeStamp) - 1]);
+    $diaNome = $diasPT[date('w', $timeStamp)];
+    
+    $y_text = 150;
+    $bbox_diaMes = imagettfbbox(85, 0, $font_path, $textoDiaMes);
+    imagettftext($im, 85, 0, ($width - ($bbox_diaMes[2] - $bbox_diaMes[0])) / 2, $y_text, $card_text_color, $font_path, $textoDiaMes);
 
-    // JOGOS
-    $yAtual = $espacoCabecalho;
+    $bboxDia = imagettfbbox(50, 0, $font_path, $diaNome);
+    $textWidthDia = $bboxDia[2] - $bboxDia[0];
+    $rect_width = $textWidthDia + 80;
+    $rect_height = ($bboxDia[1] - $bboxDia[7]) + 40;
+    $x_rect = ($width - $rect_width) / 2;
+    $y_rect = $y_text + 30;
+    imagefilledrectangle($im, $x_rect, $y_rect, $x_rect + $rect_width, $y_rect + $rect_height, $champ_text_color);
+    imagettftext($im, 50, 0, $x_rect + 40, $y_rect + 20 + ($bboxDia[1] - $bboxDia[7]), $card_text_color, $font_path, $diaNome);
     
+    $current_y = $y_rect + $rect_height + 40;
+
+    // --- LOOP DE JOGOS (FUSÃO DAS LÓGICAS) ---
+    $card_height = 220;
+    $card_x = 50;
+    $card_width = $width - 100;
+    $spacing = 20;
+
     foreach ($grupoJogos as $idx) {
         if (!isset($jogos[$idx])) continue;
-
-        if ($fundoJogo) {
-            $alturaCard = $heightPorJogo - 10;
-            $larguraCard = $width - $padding * 2;
-            $cardResized = imagecreatetruecolor($larguraCard, $alturaCard);
-            imagealphablending($cardResized, false);
-            imagesavealpha($cardResized, true);
-            imagecopyresampled($cardResized, $fundoJogo, 0, 0, 0, 0, 
-                              $larguraCard, $alturaCard, 
-                              imagesx($fundoJogo), imagesy($fundoJogo));
-            imagecopy($im, $cardResized, $padding, $yAtual, 
-                     0, 0, $larguraCard, $alturaCard);
-            imagedestroy($cardResized);
-        }
-
         $jogo = $jogos[$idx];
-        $time1 = $jogo['time1'] ?? 'Time 1';
-        $time2 = $jogo['time2'] ?? 'Time 2';
 
-        // Remover termos como sub-20, sub17, u17
-        $time1 = preg_replace('/\b(sub[\s-]?20|sub[\s-]?17|u17)\b/i', '', $time1);
-        $time2 = preg_replace('/\b(sub[\s-]?20|sub[\s-]?17|u17)\b/i', '', $time2);
-        $time1 = trim(preg_replace('/\s+/', ' ', $time1));
-        $time2 = trim(preg_replace('/\s+/', ' ', $time2));
+        // Card com fundo semi-transparente (lógica do novo layout)
+        $adm_card_bg_color = imagecolorallocatealpha($im, $card_color['r'], $card_color['g'], $card_color['b'], 60);
+        imagefilledrectangle($im, $card_x, $current_y, $card_x + $card_width, $current_y + $card_height, $adm_card_bg_color);
 
-        $liga = $jogo['competicao'] ?? 'Liga';
-        $hora = $jogo['horario'] ?? '';
-        $canais = tratarCanaisTransmissao($jogo['canais'] ?? []);
+        // Texto da competição e horário
+        $competicao = strtoupper($jogo['competicao'] ?? "CAMPEONATO");
+        $horario = $jogo['horario'] ?? "00:00";
+        $line_top = "$competicao - $horario";
+        $bbox_comp = imagettfbbox($comp_font_size, 0, $font_path, $line_top);
+        $x_comp = $card_x + ($card_width - ($bbox_comp[2] - $bbox_comp[0])) / 2;
+        imagettftext($im, $comp_font_size, 0, $x_comp, $current_y + 40, $champ_text_color, $font_path, $line_top);
+
+        // --- Logos e Nomes dos Times (Lógica de carregamento original + layout novo) ---
         
-        $escudo1_url = LOGO_OVERRIDES[$time1] ?? ($jogo['img_time1_url'] ?? '');
-        $escudo2_url = LOGO_OVERRIDES[$time2] ?? ($jogo['img_time2_url'] ?? '');
+        // Obter URLs e limpar nomes
+        $time1_raw = $jogo['time1'] ?? 'Time 1';
+        $time2_raw = $jogo['time2'] ?? 'Time 2';
+        $escudo1_url = LOGO_OVERRIDES[$time1_raw] ?? ($jogo['img_time1_url'] ?? '');
+        $escudo2_url = LOGO_OVERRIDES[$time2_raw] ?? ($jogo['img_time2_url'] ?? '');
 
-        $tamEscudo = 45;
-        $tamVS = 50;
+        // Carregar escudos com a função de cache do sistema
+        $logo1 = carregarEscudo($time1_raw, $escudo1_url, $logo_teams_size);
+        $logo2 = carregarEscudo($time2_raw, $escudo2_url, $logo_teams_size);
 
-        // Carregar imagens
-        $imgEscudo1 = carregarEscudo($time1, $escudo1_url, $tamEscudo);
-        $imgEscudo2 = carregarEscudo($time2, $escudo2_url, $tamEscudo);
+        // Posicionar escudos
+        if ($logo1) {
+            imagecopyresampled($im, $logo1, $card_x + 10, $current_y + $card_height - $logo_teams_size - 10, 0, 0, $logo_teams_size, $logo_teams_size, imagesx($logo1), imagesy($logo1));
+        }
+        if ($logo2) {
+            imagecopyresampled($im, $logo2, $card_x + $card_width - $logo_teams_size - 10, $current_y + $card_height - $logo_teams_size - 10, 0, 0, $logo_teams_size, $logo_teams_size, imagesx($logo2), imagesy($logo2));
+        }
         
-        // Carregar imagem VS
-        $vsPath = __DIR__ . '/../imgelementos/vs.png';
-        if (file_exists($vsPath)) {
-            $vsImg = carregarImagem($vsPath, $tamVS, $tamVS);
+        // Lógica de centralização dos nomes + VS
+        $gap = 20;
+        $vs_icon = file_exists($vs_icon_path) ? imagecreatefrompng($vs_icon_path) : null;
+        $w_vs = $vs_icon ? $logo_vs_size : (imagettfbbox($teams_font_size, 0, $font_path, 'VS')[2] - imagettfbbox($teams_font_size, 0, $font_path, 'VS')[0]);
+        
+        $max_text_area_width = $card_width - (($logo_teams_size + 5) * 2) - ($gap * 2);
+        $max_team_name_width = ($max_text_area_width - $w_vs) / 2;
+
+        $time1 = truncateText(strtoupper($time1_raw), $teams_font_size, $font_path, $max_team_name_width);
+        $time2 = truncateText(strtoupper($time2_raw), $teams_font_size, $font_path, $max_team_name_width);
+        
+        $w_time1 = imagettfbbox($teams_font_size, 0, $font_path, $time1)[2] - imagettfbbox($teams_font_size, 0, $font_path, $time1)[0];
+        $w_time2 = imagettfbbox($teams_font_size, 0, $font_path, $time2)[2] - imagettfbbox($teams_font_size, 0, $font_path, $time2)[0];
+        
+        $total_w = $w_time1 + $gap + $w_vs + $gap + $w_time2;
+        $start_x = $card_x + ($card_width / 2) - ($total_w / 2);
+        $names_y = $current_y + ($card_height / 2) + 15;
+        
+        imagettftext($im, $teams_font_size, 0, $start_x, $names_y, $card_text_color, $font_path, $time1);
+        $x_vs = $start_x + $w_time1 + $gap;
+        if ($vs_icon) {
+            imagecopyresampled($im, $vs_icon, $x_vs, $names_y - ($logo_vs_size / 2) - 25, 0, 0, $logo_vs_size, $logo_vs_size, imagesx($vs_icon), imagesy($vs_icon));
         } else {
-            // Criar um placeholder para VS se a imagem não existir
-            $vsImg = imagecreatetruecolor($tamVS, $tamVS);
-            $bg = imagecolorallocate($vsImg, 200, 200, 200);
-            imagefill($vsImg, 0, 0, $bg);
-            $textColor = imagecolorallocate($vsImg, 0, 0, 0);
-            imagestring($vsImg, 3, $tamVS/2 - 8, $tamVS/2 - 5, "VS", $textColor);
+            imagettftext($im, $teams_font_size, 0, $x_vs, $names_y, $card_text_color, $font_path, "VS");
+        }
+        imagettftext($im, $teams_font_size, 0, $x_vs + $w_vs + $gap, $names_y, $card_text_color, $font_path, $time2);
+
+        // Logos dos canais
+        if (!empty($jogo['canais']) && is_array($jogo['canais'])) {
+            $num_canais = count($jogo['canais']);
+            $total_canais_w = ($num_canais * $logo_canal_size) + (10 * ($num_canais - 1));
+            $start_canais_x = $card_x + ($card_width - $total_canais_w) / 2;
+            $canais_y = $current_y + $card_height - $logo_canal_size - 10;
+            
+            foreach ($jogo['canais'] as $idx_c => $canal) {
+                $canal_url = trim($canal['img_url']);
+                $canal_img = carregarEscudo('canal_' . $idx_c, $canal_url, $logo_canal_size); // Usando a função de cache
+                if ($canal_img) {
+                    $cx = $start_canais_x + ($idx_c * ($logo_canal_size + 10));
+                    imagecopyresampled($im, $canal_img, $cx, $canais_y, 0, 0, $logo_canal_size, $logo_canal_size, imagesx($canal_img), imagesy($canal_img));
+                    if (!isset($GLOBALS['imageCache'][md5($canal_url . $logo_canal_size)])) {
+                        imagedestroy($canal_img);
+                    }
+                }
+            }
         }
 
-        $yTop = $yAtual + ($espacamentoVertical / 2);
+        // --- Gerenciamento de Memória CORRETO ---
+        if ($logo1 && !isset($GLOBALS['imageCache'][md5($escudo1_url . $logo_teams_size)])) imagedestroy($logo1);
+        if ($logo2 && !isset($GLOBALS['imageCache'][md5($escudo2_url . $logo_teams_size)])) imagedestroy($logo2);
+        if ($vs_icon) imagedestroy($vs_icon);
 
-        // Elementos do jogo
-        desenharTexto($im, $liga, $posicoes['liga']['x'], $yTop + $posicoes['liga']['y'], 
-                     $branco, 17, 0, $fontLiga);
-
-        // Escudos
-        imagecopy($im, $imgEscudo1, $posicoes['escudo1']['x'], $yTop + $posicoes['escudo1']['y'], 
-                 0, 0, $tamEscudo, $tamEscudo);
-        imagecopy($im, $vsImg, $posicoes['vs']['x'], $yTop + $posicoes['vs']['y'], 
-                 0, 0, $tamVS, $tamVS);
-        imagecopy($im, $imgEscudo2, $posicoes['escudo2']['x'], $yTop + $posicoes['escudo2']['y'], 
-                 0, 0, $tamEscudo, $tamEscudo);
-
-        // Nomes dos times centralizados
-        $nome_time1_y = $yTop + $posicoes['nome_time1']['y'] + ($tamEscudo / 2) + 8;
-        $nome_time2_y = $yTop + $posicoes['nome_time2']['y'] + ($tamEscudo / 2) + 8;
-        desenharTexto($im, $time1, $posicoes['nome_time1']['x'], $nome_time1_y, 
-                     $branco, $tamanhoFonteTimes, 0, $fonteTimes);
-        
-        $bbox2 = imagettfbbox($tamanhoFonteTimes, 0, $fonteTimes, $time2);
-        $larguraTexto2 = $bbox2[2] - $bbox2[0];
-        $posX_nome_time2 = $posicoes['nome_time2']['x'] - $larguraTexto2;
-
-        desenharTexto($im, $time2, $posX_nome_time2, $nome_time2_y, 
-                     $branco, $tamanhoFonteTimes, 0, $fonteTimes);
-
-        // Outros elementos
-        desenharTexto($im, date('d/m'), $posicoes['data']['x'], $yTop + $posicoes['data']['y'], 
-                     $branco, 12, 0, $fontLiga);
-        desenharTexto($im, $hora, $posicoes['horario']['x'], $yTop + $posicoes['horario']['y'], 
-                     $branco, 22, 0, $fontLiga);
-        desenharTexto($im, $canais, $posicoes['canais']['x'], $yTop + $posicoes['canais']['y'], 
-                     $branco, 16, 0, $fontLiga);
-
-        // Limpar memória
-        imagedestroy($imgEscudo1);
-        imagedestroy($imgEscudo2);
-        imagedestroy($vsImg);
-
-        $yAtual += $heightPorJogo + $espacamentoVertical;
+        $current_y += $card_height + $spacing;
     }
 
-    if ($fundoJogo) imagedestroy($fundoJogo);
-    
+    // --- RODAPÉ (LÓGICA DO NOVO LAYOUT) ---
+    $rodape_text = "Assine já e acompanhe os principais campeonatos do mundo!";
+    $bbox_rodape = imagettfbbox($rodape_font_size, 0, $font_path, $rodape_text);
+    $x_rodape = ($width - ($bbox_rodape[2] - $bbox_rodape[0])) / 2;
+    imagettftext($im, $rodape_font_size, 0, $x_rodape, $height - 30, $card_text_color, $font_path, $rodape_text);
+
     return $im;
 }
 ?>
