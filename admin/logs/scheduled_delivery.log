@@ -1,0 +1,157 @@
+
+[2025-06-27 15:53:15] [INFO] === INICIANDO EXECUÇÃO DO ENVIO AGENDADO ===
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: === INICIANDO EXECUÇÃO DO ENVIO AGENDADO ===
+[2025-06-27 15:53:15] [INFO] Modo de execução: WEB
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Modo de execução: WEB
+[2025-06-27 15:53:15] [INFO] Acesso via web autorizado com token válido
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Acesso via web autorizado com token válido
+[2025-06-27 15:53:15] [INFO] Carregando dependências...
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Carregando dependências...
+[2025-06-27 15:53:15] [INFO] Dependências carregadas com sucesso
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Dependências carregadas com sucesso
+[2025-06-27 15:53:15] [INFO] Buscando usuários com envio agendado para o horário: 15:53
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Buscando usuários com envio agendado para o horário: 15:53
+[2025-06-27 15:53:15] [INFO] Encontrados 1 usuários para processamento
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Encontrados 1 usuários para processamento
+[2025-06-27 15:53:15] [INFO] Encontrados 4 jogos para hoje
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Encontrados 4 jogos para hoje
+[2025-06-27 15:53:15] [INFO] Processando usuário ID 1 - Tema 3 - 1/1
+[27-Jun-2025 15:53:15 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Processando usuário ID 1 - Tema 3 - 1/1
+[27-Jun-2025 15:53:16 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 408.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[27-Jun-2025 15:53:18 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 869.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[27-Jun-2025 15:53:18 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 653.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[27-Jun-2025 15:53:19 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 424.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[27-Jun-2025 15:53:20 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 828.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Function strftime() is deprecated in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 764
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 395.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 765
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 152.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1287.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 27
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 28
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 29
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 30
+[27-Jun-2025 15:53:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 238.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[2025-06-27 15:53:24] [INFO] ✅ Banners enviados com sucesso para usuário ID 1
+[27-Jun-2025 15:53:24 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: ✅ Banners enviados com sucesso para usuário ID 1
+[2025-06-27 15:53:24] [INFO] Processamento concluído: 1 usuários processados, 1 com sucesso, 0 com falha
+[27-Jun-2025 15:53:24 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Processamento concluído: 1 usuários processados, 1 com sucesso, 0 com falha
+[2025-06-27 15:53:24] [INFO] === EXECUÇÃO FINALIZADA COM SUCESSO ===
+[27-Jun-2025 15:53:24 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: === EXECUÇÃO FINALIZADA COM SUCESSO ===
+[2025-06-28 00:03:40] [INFO] === INICIANDO EXECUÇÃO DO ENVIO AGENDADO ===
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: === INICIANDO EXECUÇÃO DO ENVIO AGENDADO ===
+[2025-06-28 00:03:40] [INFO] Modo de execução: WEB
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Modo de execução: WEB
+[2025-06-28 00:03:40] [INFO] Acesso via web autorizado com token válido
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Acesso via web autorizado com token válido
+[2025-06-28 00:03:40] [INFO] Carregando dependências...
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Carregando dependências...
+[2025-06-28 00:03:40] [INFO] Dependências carregadas com sucesso
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Dependências carregadas com sucesso
+[2025-06-28 00:03:40] [INFO] Buscando usuários com envio agendado para o horário: 00:03
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Buscando usuários com envio agendado para o horário: 00:03
+[2025-06-28 00:03:40] [INFO] Encontrados 1 usuários para processamento
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Encontrados 1 usuários para processamento
+[2025-06-28 00:03:40] [INFO] Encontrados 26 jogos para hoje
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Encontrados 26 jogos para hoje
+[2025-06-28 00:03:40] [INFO] Processando usuário ID 1 - Tema 1 - 1/1
+[28-Jun-2025 00:03:40 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Processando usuário ID 1 - Tema 1 - 1/1
+[28-Jun-2025 00:03:42 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 826.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:42 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 937.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:44 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 935.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:44 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 956.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:45 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 863.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:45 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 917.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:46 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 955.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:46 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 991.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 935.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 936.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Function strftime() is deprecated in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 466
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 395.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 467
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 152.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1287.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 27
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 28
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 29
+[28-Jun-2025 00:03:48 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 30
+[28-Jun-2025 00:03:51 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 977.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:54 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 917.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:56 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 900.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:56 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 960.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:58 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 947.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:58 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 937.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Function strftime() is deprecated in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 466
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 395.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 467
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 152.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1287.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 27
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 28
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 29
+[28-Jun-2025 00:03:59 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 30
+[28-Jun-2025 00:04:03 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 925.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:03 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 887.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:05 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 883.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:05 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 924.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:06 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 856.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:06 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 854.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Function strftime() is deprecated in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 466
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 395.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 467
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 152.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1287.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 27
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 28
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 29
+[28-Jun-2025 00:04:07 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 30
+[28-Jun-2025 00:04:08 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 890.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:10 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 873.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:11 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 882.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:12 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 935.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 942.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 948.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Function strftime() is deprecated in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 466
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 395.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 467
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 152.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1287.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 27
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 28
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 29
+[28-Jun-2025 00:04:14 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 30
+[28-Jun-2025 00:04:16 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 915.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:19 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 912.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:20 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 904.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:21 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 828.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 213
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Function strftime() is deprecated in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 466
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 395.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 467
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 152.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1287.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 27
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 28
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 29
+[28-Jun-2025 00:04:22 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 30
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Function strftime() is deprecated in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 466
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 395.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 467
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 25
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 152.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1287.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 26
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 27
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 28
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 167.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 29
+[28-Jun-2025 00:04:24 America/Sao_Paulo] PHP Deprecated:  Implicit conversion from float 1272.5 to int loses precision in /var/www/vhosts/streamingplay.site/desenvolvendo.streamingplay.site/admin/includes/banner_functions.php on line 30
+[2025-06-28 00:04:33] [INFO] ✅ Banners enviados com sucesso para usuário ID 1
+[28-Jun-2025 00:04:33 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: ✅ Banners enviados com sucesso para usuário ID 1
+[2025-06-28 00:04:33] [INFO] Processamento concluído: 1 usuários processados, 1 com sucesso, 0 com falha
+[28-Jun-2025 00:04:33 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: Processamento concluído: 1 usuários processados, 1 com sucesso, 0 com falha
+[2025-06-28 00:04:33] [INFO] === EXECUÇÃO FINALIZADA COM SUCESSO ===
+[28-Jun-2025 00:04:33 America/Sao_Paulo] SCHEDULED_DELIVERY [INFO]: === EXECUÇÃO FINALIZADA COM SUCESSO ===
