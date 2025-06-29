@@ -9,6 +9,30 @@ require_once 'classes/User.php';
 require_once 'classes/MercadoPago.php';
 require_once 'classes/MercadoPagoSettings.php';
 
+// Debug log to check session state
+error_log("Payment.php session state: " . print_r($_SESSION, true));
+
+// Verificar se há mensagem de sucesso
+$successMessage = '';
+if (isset($_SESSION['payment_success']) && $_SESSION['payment_success']) {
+    $successMessage = $_SESSION['payment_message'] ?? "Pagamento confirmado com sucesso!";
+    unset($_SESSION['payment_success']);
+    unset($_SESSION['payment_message']);
+    
+    // Se o pagamento foi bem-sucedido e era um usuário com conta expirada, redirecionar para login
+    if (isset($_SESSION["temp_user_id"])) {
+        // Limpar dados temporários
+        unset($_SESSION["temp_user_id"]);
+        unset($_SESSION["temp_username"]);
+        
+        // Redirecionar para login com mensagem de sucesso
+        $_SESSION['login_success'] = true;
+        $_SESSION['login_message'] = "Sua assinatura foi renovada com sucesso! Faça login para continuar.";
+        header("Location: login.php");
+        exit();
+    }
+}
+
 $user = new User();
 $mercadoPago = new MercadoPago();
 $mercadoPagoSettings = new MercadoPagoSettings();
@@ -90,27 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // Redirecionar para evitar reenvio do formulário
         header('Location: payment.php' . ($isExpiredRedirect ? '?expired=true' : ''));
         exit;
-    }
-}
-
-// Verificar se há mensagem de sucesso
-$successMessage = '';
-if (isset($_SESSION['payment_success']) && $_SESSION['payment_success']) {
-    $successMessage = $_SESSION['payment_message'] ?? "Pagamento confirmado com sucesso!";
-    unset($_SESSION['payment_success']);
-    unset($_SESSION['payment_message']);
-    
-    // Se o pagamento foi bem-sucedido e era um usuário com conta expirada, redirecionar para login
-    if (isset($_SESSION["temp_user_id"])) {
-        // Limpar dados temporários
-        unset($_SESSION["temp_user_id"]);
-        unset($_SESSION["temp_username"]);
-        
-        // Redirecionar para login com mensagem de sucesso
-        $_SESSION['login_success'] = true;
-        $_SESSION['login_message'] = "Sua assinatura foi renovada com sucesso! Faça login para continuar.";
-        header("Location: login.php");
-        exit();
     }
 }
 
