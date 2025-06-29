@@ -21,9 +21,9 @@ $allowedPages = ['payment.php']; // Páginas permitidas para usuários expirados
 if ($isLoggedIn && isset($_SESSION["user_id"])) {
     require_once __DIR__ . '/../classes/User.php';
     $user = new User();
-    $userData = $user->getUserById($_SESSION["user_id"]);
+    $loggedInUserData = $user->getUserById($_SESSION["user_id"]);
     
-    if ($userData && $userData['expires_at'] && strtotime($userData['expires_at']) < time()) {
+    if ($loggedInUserData && $loggedInUserData['expires_at'] && strtotime($loggedInUserData['expires_at']) < time()) {
         $isExpired = true;
         
         // Se a página atual não é permitida para usuários expirados, converter para sessão temporária e redirecionar
