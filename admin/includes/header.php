@@ -1,10 +1,79 @@
 <?php
 session_start();
 date_default_timezone_set('America/Sao_Paulo');
-if (!isset($_SESSION["usuario"])) {
+
+// Verificar se o usuário está logado (sessão completa ou temporária)
+$isLoggedIn = isset($_SESSION["usuario"]);
+$isTempUser = !$isLoggedIn && isset($_SESSION["temp_user_id"]);
+
+// Se não estiver logado de nenhuma forma, redirecionar para login
+if (!$isLoggedIn && !$isTempUser) {
     header("Location: login.php");
     exit();
 }
+
+// Verificar se a conta está expirada
+$isExpired = false;
+$currentPage = basename($_SERVER['PHP_SELF']);
+$allowedPages = ['payment.php']; // Páginas permitidas para usuários expirados
+
+// Verificar expiração para usuários com sessão completa
+if ($isLoggedIn && isset($_SESSION["user_id"])) {
+    require_once 'classes/User.php';
+    $user = new User();
+    $userData = $user->getUserById($_SESSION["user_id"]);
+    
+    if ($userData && $userData['expires_at'] && strtotime($userData['expires_at']) < time()) {
+        $isExpired = true;
+        
+        // Se a página atual não é permitida para usuários expirados, converter para sessão temporária e redirecionar
+        if (!in_array($currentPage, $allowedPages)) {
+            // Armazenar dados temporários para payment.php
+            $_SESSION["temp_user_id"] = $_SESSION["user_id"];
+            $_SESSION["temp_username"] = $_SESSION["usuario"];
+            
+            // Limpar sessão completa
+            unset($_SESSION["usuario"]);
+            unset($_SESSION["user_id"]);
+            unset($_SESSION["role"]);
+            
+            // Redirecionar para payment.php
+            header("Location: payment.php?expired=true");
+            exit();
+        }
+    }
+}
+
+// Verificar para usuários com sessão temporária
+if ($isTempUser) {
+    // Verificar se o usuário ainda está expirado
+    require_once 'classes/User.php';
+    $user = new User();
+    $tempUserData = $user->getUserById($_SESSION["temp_user_id"]);
+    
+    // Se o usuário não existe mais ou não está mais expirado, limpar sessão temporária
+    if (!$tempUserData || !$tempUserData['expires_at'] || strtotime($tempUserData['expires_at']) >= time()) {
+        unset($_SESSION["temp_user_id"]);
+        unset($_SESSION["temp_username"]);
+        
+        // Redirecionar para login
+        header("Location: login.php");
+        exit();
+    }
+    
+    $isExpired = true;
+    
+    // Se a página atual não é permitida para usuários expirados, redirecionar
+    if (!in_array($currentPage, $allowedPages)) {
+        header("Location: payment.php?expired=true");
+        exit();
+    }
+}
+
+// Registrar informações para debug
+error_log("Header.php - Current page: $currentPage, isLoggedIn: " . ($isLoggedIn ? 'Yes' : 'No') . 
+          ", isTempUser: " . ($isTempUser ? 'Yes' : 'No') . 
+          ", isExpired: " . ($isExpired ? 'Yes' : 'No'));
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -772,13 +841,16 @@ if (!isset($_SESSION["usuario"])) {
             <div class="sidebar-footer">
                 <div class="user-info">
                     <div class="user-avatar">
-                        <?php echo strtoupper(substr($_SESSION["usuario"], 0, 2)); ?>
+                        <?php 
+                        $displayUsername = $isLoggedIn ? $_SESSION["usuario"] : ($_SESSION["temp_username"] ?? "Temp");
+                        echo strtoupper(substr($displayUsername, 0, 2)); 
+                        ?>
                     </div>
                     <div class="user-details">
-                        <h4><?php echo htmlspecialchars($_SESSION["usuario"]); ?></h4>
+                        <h4><?php echo htmlspecialchars($displayUsername); ?></h4>
                         <p>
                             <?php 
-                            if (isset($_SESSION['role'])) {
+                            if ($isLoggedIn && isset($_SESSION['role'])) {
                                 if ($_SESSION['role'] === 'admin') {
                                     echo 'Administrador';
                                 } elseif ($_SESSION['role'] === 'master') {
@@ -790,6 +862,9 @@ if (!isset($_SESSION["usuario"])) {
                                 echo 'Usuário';
                             }
                             ?>
+                            <?php if ($isExpired): ?>
+                            <span class="expired-badge">Expirado</span>
+                            <?php endif; ?>
                         </p>
                     </div>
                 </div>
@@ -817,6 +892,12 @@ if (!isset($_SESSION["usuario"])) {
                     </nav>
                 </div>
                 <div class="header-right">
+                    <?php if ($isExpired): ?>
+                    <span class="account-expired-notice">
+                        <i class="fas fa-exclamation-circle"></i>
+                        Conta expirada
+                    </span>
+                    <?php endif; ?>
                     <span class="text-sm text-muted">
                         <?php echo date('d/m/Y H:i'); ?>
                     </span>
@@ -825,3 +906,80 @@ if (!isset($_SESSION["usuario"])) {
 
             <!-- Content Area -->
             <div class="content-area">
+                <?php if ($isExpired && $currentPage === 'payment.php'): ?>
+                <div class="account-expired-alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <h3>Sua conta está expirada</h3>
+                        <p>Por favor, renove sua assinatura para continuar utilizando o sistema.</p>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+<style>
+    .expired-badge {
+        display: inline-block;
+        background: var(--danger-50);
+        color: var(--danger-600);
+        font-size: 0.625rem;
+        padding: 0.125rem 0.375rem;
+        border-radius: 9999px;
+        margin-left: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .account-expired-notice {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--danger-50);
+        color: var(--danger-600);
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--border-radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 1rem;
+    }
+    
+    .account-expired-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        background: var(--danger-50);
+        color: var(--danger-600);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    
+    .account-expired-alert i {
+        font-size: 1.5rem;
+    }
+    
+    .account-expired-alert h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .account-expired-alert p {
+        font-size: 0.875rem;
+    }
+    
+    [data-theme="dark"] .expired-badge {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-400);
+    }
+    
+    [data-theme="dark"] .account-expired-notice {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-400);
+    }
+    
+    [data-theme="dark"] .account-expired-alert {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-400);
+        border-color: rgba(239, 68, 68, 0.2);
+    }
+</style>
