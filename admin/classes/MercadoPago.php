@@ -531,32 +531,65 @@ class MercadoPago {
     }
     
     /**
-     * Obter histórico de pagamentos de um usuário
+     * Obter histórico de pagamentos de um usuário ou lista de usuários
      * 
-     * @param int $userId ID do usuário
+     * @param int|array $userIds ID do usuário ou array de IDs de usuários
      * @param int $limit Limite de registros
      * @return array Lista de pagamentos
      */
-    public function getUserPaymentHistory($userId, $limit = 5) {
+    public function getUserPaymentHistory($userIds, $limit = 5) {
         try {
-            $stmt = $this->db->prepare("
-                SELECT 
-                    id,
-                    payment_id,
-                    preference_id,
-                    status,
-                    transaction_amount,
-                    payment_purpose,
-                    related_quantity,
-                    payment_date,
-                    created_at
-                FROM mercadopago_payments 
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-            ");
+            // Verificar se é um único ID ou um array de IDs
+            $isArray = is_array($userIds);
             
-            $stmt->execute([$userId, $limit]);
+            if ($isArray && empty($userIds)) {
+                return [];
+            }
+            
+            // Construir a consulta SQL com base no tipo de entrada
+            if ($isArray) {
+                $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+                $sql = "
+                    SELECT 
+                        id,
+                        user_id,
+                        payment_id,
+                        preference_id,
+                        status,
+                        transaction_amount,
+                        payment_purpose,
+                        related_quantity,
+                        payment_date,
+                        created_at
+                    FROM mercadopago_payments 
+                    WHERE user_id IN ({$placeholders})
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                ";
+                $params = array_merge($userIds, [$limit]);
+            } else {
+                $sql = "
+                    SELECT 
+                        id,
+                        user_id,
+                        payment_id,
+                        preference_id,
+                        status,
+                        transaction_amount,
+                        payment_purpose,
+                        related_quantity,
+                        payment_date,
+                        created_at
+                    FROM mercadopago_payments 
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                ";
+                $params = [$userIds, $limit];
+            }
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
             return $stmt->fetchAll();
         } catch (Exception $e) {
             error_log("Erro ao buscar histórico de pagamentos: " . $e->getMessage());
