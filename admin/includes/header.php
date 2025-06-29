@@ -630,6 +630,10 @@ if (!isset($_SESSION["usuario"])) {
             .md\\:grid-cols-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
+            
+            .md\\:grid-cols-4 {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
         }
 
         @media (min-width: 1024px) {
@@ -713,11 +717,25 @@ if (!isset($_SESSION["usuario"])) {
                         <i class="fas fa-users"></i>
                         <span>Gerenciar Usuários</span>
                     </a>
+                    <a href="mercadopago.php" class="nav-item">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>Mercado Pago</span>
+                    </a>
+                    <a href="payment_management.php" class="nav-item">
+                        <i class="fas fa-money-check-alt"></i>
+                        <span>Gerenciar Pagamentos</span>
+                    </a>
                 </div>
                 <?php endif; ?>
 
                 <div class="nav-section">
                     <div class="nav-section-title">Sistema</div>
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'): ?>
+                    <a href="payment.php" class="nav-item">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Pagamento</span>
+                    </a>
+                    <?php endif; ?>
                     <a href="setting.php" class="nav-item">
                         <i class="fas fa-cog"></i>
                         <span>Configurações</span>
