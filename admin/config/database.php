@@ -92,6 +92,16 @@ class Database {
             INDEX idx_user_telegram (user_id),
             INDEX idx_scheduled_delivery (scheduled_delivery_enabled, scheduled_time)
         );
+
+        CREATE TABLE IF NOT EXISTS mercadopago_settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL UNIQUE,
+            access_token VARCHAR(255) NOT NULL,
+            user_access_value DECIMAL(10, 2) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE
+        );
         ";
         
         $this->connection->exec($sql);
