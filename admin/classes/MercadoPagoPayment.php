@@ -51,7 +51,7 @@ class MercadoPagoPayment {
         try {
             $this->db->exec($sql);
         } catch (PDOException $e) {
-            error_log("Erro ao criar tabela de pagamentos: " . $e->getMessage());
+            // Silently handle error
         }
     }
     
@@ -120,9 +120,6 @@ class MercadoPagoPayment {
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $error = curl_error($ch);
             
-            // Log para debug
-            error_log("MercadoPagoPayment: Preference creation response - HTTP Code: {$httpCode}, Response: {$response}");
-            
             curl_close($ch);
             
             if ($response === false) {
@@ -154,7 +151,6 @@ class MercadoPagoPayment {
             $qrCode = $payment['point_of_interaction']['transaction_data']['qr_code'] ?? '';
             
             if (empty($qrCodeBase64) || empty($qrCode)) {
-                error_log("MercadoPagoPayment: Failed to retrieve QR code or invalid response. QR Data: " . print_r($payment, true));
                 return [
                     'success' => false,
                     'message' => 'Erro ao obter QR Code do Mercado Pago'
@@ -186,7 +182,6 @@ class MercadoPagoPayment {
             ];
             
         } catch (Exception $e) {
-            error_log("Erro ao criar pagamento Pix: " . $e->getMessage());
             return [
                 'success' => false, 
                 'message' => 'Erro interno: ' . $e->getMessage()
@@ -327,7 +322,6 @@ class MercadoPagoPayment {
             ];
             
         } catch (Exception $e) {
-            error_log("Erro ao verificar status do pagamento: " . $e->getMessage());
             return [
                 'success' => false, 
                 'message' => 'Erro interno: ' . $e->getMessage()
@@ -383,7 +377,6 @@ class MercadoPagoPayment {
             
             return true;
         } catch (Exception $e) {
-            error_log("Erro ao renovar acesso do usuário: " . $e->getMessage());
             return false;
         }
     }
@@ -415,7 +408,6 @@ class MercadoPagoPayment {
             $stmt->execute([$userId, $limit]);
             return $stmt->fetchAll();
         } catch (Exception $e) {
-            error_log("Erro ao buscar histórico de pagamentos: " . $e->getMessage());
             return [];
         }
     }
@@ -441,7 +433,6 @@ class MercadoPagoPayment {
             $stmt->execute();
             return $stmt->fetch();
         } catch (Exception $e) {
-            error_log("Erro ao obter estatísticas de pagamentos: " . $e->getMessage());
             return [
                 'total_payments' => 0,
                 'approved_payments' => 0,
@@ -663,7 +654,6 @@ class MercadoPagoPayment {
             ];
             
         } catch (Exception $e) {
-            error_log("Erro ao processar notificação de pagamento: " . $e->getMessage());
             return [
                 'success' => false, 
                 'message' => 'Erro interno: ' . $e->getMessage()

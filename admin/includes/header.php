@@ -69,11 +69,6 @@ if ($isTempUser) {
         exit();
     }
 }
-
-// Registrar informações para debug
-error_log("Header.php - Current page: $currentPage, isLoggedIn: " . ($isLoggedIn ? 'Yes' : 'No') . 
-          ", isTempUser: " . ($isTempUser ? 'Yes' : 'No') . 
-          ", isExpired: " . ($isExpired ? 'Yes' : 'No'));
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">

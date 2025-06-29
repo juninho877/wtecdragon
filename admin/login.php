@@ -22,9 +22,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $user = new User();
         $result = $user->authenticate($username, $password);
         
-        // Log para debug - registrar o resultado da autenticação
-        error_log("Login attempt for user: $username - Result: " . ($result['success'] ? 'Success' : 'Failed') . " - Message: " . ($result['message'] ?? 'No message'));
-        
         if ($result['success']) {
             $_SESSION["usuario"] = $result['user']['username'];
             $_SESSION["user_id"] = $result['user']['id'];
@@ -34,8 +31,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             // Verificar se a conta está expirada
             if ($result['message'] === 'Conta expirada') {
-                error_log("User $username has expired account - redirecting to payment page");
-                
                 // Buscar o usuário pelo nome de usuário para obter o ID
                 $stmt = $db->getConnection()->prepare("SELECT id FROM usuarios WHERE username = ?");
                 $stmt->execute([$username]);
@@ -49,14 +44,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     // Redirecionar para a página de pagamento com parâmetro de conta expirada
                     header("Location: payment.php?expired=true");
                     exit();
-                } else {
-                    error_log("Failed to get user ID for expired account: $username");
                 }
             }
             $erro = $result['message'];
         }
     } catch (Exception $e) {
-        error_log("Exception during login: " . $e->getMessage());
         $erro = "Erro interno do sistema. Tente novamente.";
     }
 }
