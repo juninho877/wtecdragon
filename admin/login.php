@@ -59,6 +59,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $erro = "Erro interno do sistema. Tente novamente.";
     }
 }
+
+// Verificar se existe uma mensagem de sucesso de login após renovação
+$loginSuccess = isset($_SESSION['login_success']) && $_SESSION['login_success'];
+$loginMessage = isset($_SESSION['login_message']) ? $_SESSION['login_message'] : '';
+
+// Limpar mensagens da sessão após uso
+if (isset($_SESSION['login_success'])) {
+    unset($_SESSION['login_success']);
+    unset($_SESSION['login_message']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -379,6 +389,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-size: 0.875rem;
         }
 
+        /* Success message */
+        .success-message {
+            background: var(--success-50);
+            color: var(--success-600);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        [data-theme="dark"] .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success-400);
+        }
+
         /* Animations */
         @keyframes slideIn {
             from {
@@ -469,6 +499,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
 
         <div class="login-form">
+            <?php if ($loginSuccess): ?>
+            <div class="success-message">
+                <i class="fas fa-check-circle"></i>
+                <?php echo $loginMessage; ?>
+            </div>
+            <?php endif; ?>
+            
             <div class="welcome-text">
                 <h3>Bem-vindo de volta!</h3>
                 <p>Faça login para acessar o painel administrativo</p>
