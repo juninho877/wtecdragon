@@ -53,14 +53,14 @@ class MercadoPagoPayment {
     }
     
     /**
-     * Criar uma preferência de pagamento no Mercado Pago
+     * Criar um pagamento Pix no Mercado Pago
      * 
      * @param int $userId ID do usuário
      * @param string $description Descrição do pagamento
      * @param float $amount Valor do pagamento
      * @return array Resultado da operação
      */
-    public function createPaymentPreference($userId, $description, $amount) {
+    public function createPixPayment($userId, $description, $amount) {
         try {
             // Buscar configurações do admin (ID 1)
             $adminSettings = $this->mercadoPagoSettings->getSettings(1);
@@ -84,32 +84,20 @@ class MercadoPagoPayment {
             // Criar referência externa única
             $externalReference = "USER_{$userId}_" . time();
             
-            // Criar preferência de pagamento
-            $url = "https://api.mercadopago.com/checkout/preferences";
+            // Criar pagamento Pix
+            $url = "https://api.mercadopago.com/v1/payments";
             
-            $preferenceData = [
-                "items" => [
-                    [
-                        "title" => $description,
-                        "quantity" => 1,
-                        "currency_id" => "BRL",
-                        "unit_price" => floatval($amount)
-                    ]
-                ],
-                "payer" => [
-                    "email" => $userEmail
-                ],
-                "payment_methods" => [
-                    "excluded_payment_types" => [
-                        ["id" => "credit_card"],
-                        ["id" => "debit_card"],
-                        ["id" => "bank_transfer"]
-                    ]
-                ],
+            $paymentData = [
+                "transaction_amount" => floatval($amount),
+                "description" => $description,
                 "external_reference" => $externalReference,
-                "statement_descriptor" => "FUTBANNER",
-                "expires" => true,
-                "expiration_date_to" => (new DateTime())->modify('+1 day')->format('c')
+                "payment_method_id" => "pix",
+                "payer" => [
+                    "email" => $userEmail,
+                    "first_name" => "Usuario",
+                    "last_name" => "FutBanner"
+                ],
+                "date_of_expiration" => (new DateTime())->modify('+1 day')->format('c')
             ];
             
             $ch = curl_init();
@@ -121,13 +109,17 @@ class MercadoPagoPayment {
                     'Content-Type: application/json'
                 ],
                 CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => json_encode($preferenceData),
+                CURLOPT_POSTFIELDS => json_encode($paymentData),
                 CURLOPT_SSL_VERIFYPEER => true
             ]);
             
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $error = curl_error($ch);
+            
+            // Log para debug
+            error_log("MercadoPagoPayment: Preference creation response - HTTP Code: {$httpCode}, Response: {$response}");
+            
             curl_close($ch);
             
             if ($response === false) {
@@ -140,64 +132,61 @@ class MercadoPagoPayment {
             if ($httpCode !== 201) {
                 return [
                     'success' => false, 
-                    'message' => 'Erro ao criar preferência de pagamento: ' . $response,
+                    'message' => 'Erro ao criar pagamento: ' . $response,
                     'http_code' => $httpCode
                 ];
             }
             
-            $preference = json_decode($response, true);
+            $payment = json_decode($response, true);
             
-            if (!isset($preference['id'])) {
+            if (!isset($payment['id'])) {
                 return [
                     'success' => false, 
                     'message' => 'Resposta inválida do Mercado Pago'
                 ];
             }
             
-            // Registrar a preferência no banco de dados
+            // Extrair dados do QR Code
+            $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? '';
+            $qrCode = $payment['point_of_interaction']['transaction_data']['qr_code'] ?? '';
+            
+            // Log para debug
+            error_log("MercadoPagoPayment: QR code retrieval response - HTTP Code: {$httpCode}, Response: {$response}");
+            
+            if (empty($qrCodeBase64) || empty($qrCode)) {
+                error_log("MercadoPagoPayment: Failed to retrieve QR code or invalid response. QR HTTP Code: {$httpCode}, QR Data: " . print_r($payment, true));
+                return [
+                    'success' => false,
+                    'message' => 'Erro ao obter QR Code do Mercado Pago'
+                ];
+            }
+            
+            // Registrar o pagamento no banco de dados
             $stmt = $this->db->prepare("
                 INSERT INTO mercadopago_payments 
-                (user_id, preference_id, external_reference, status, transaction_amount) 
-                VALUES (?, ?, ?, 'pending', ?)
+                (user_id, payment_id, preference_id, external_reference, status, transaction_amount) 
+                VALUES (?, ?, ?, ?, 'pending', ?)
             ");
             
             $stmt->execute([
                 $userId,
-                $preference['id'],
+                $payment['id'], // payment_id
+                $payment['id'], // preference_id (usando payment_id como solução temporária)
                 $externalReference,
                 $amount
             ]);
             
-            // Obter QR Code
-            $qrCodeUrl = "https://api.mercadopago.com/checkout/preferences/{$preference['id']}/qr";
-            
-            $ch = curl_init();
-            curl_setopt_array($ch, [
-                CURLOPT_URL => $qrCodeUrl,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer ' . $accessToken,
-                    'Content-Type: application/json'
-                ],
-                CURLOPT_SSL_VERIFYPEER => true
-            ]);
-            
-            $qrResponse = curl_exec($ch);
-            curl_close($ch);
-            
-            $qrData = json_decode($qrResponse, true);
-            
             return [
                 'success' => true,
-                'preference_id' => $preference['id'],
+                'preference_id' => $payment['id'], // Retorna o payment_id como preference_id para uso no payment.php
                 'external_reference' => $externalReference,
-                'qr_code_base64' => $qrData['qr_data_base64'] ?? '',
-                'qr_code' => $qrData['qr_data'] ?? '',
+                'qr_code_base64' => $qrCodeBase64,
+                'qr_code' => $qrCode,
                 'amount' => $amount
             ];
             
         } catch (Exception $e) {
-            error_log("Erro ao criar preferência de pagamento: " . $e->getMessage());
+            error_log("Erro ao criar pagamento Pix: " . $e->getMessage());
             return [
                 'success' => false, 
                 'message' => 'Erro interno: ' . $e->getMessage()
@@ -208,7 +197,7 @@ class MercadoPagoPayment {
     /**
      * Verificar status de um pagamento
      * 
-     * @param string $preferenceId ID da preferência de pagamento
+     * @param string $preferenceId ID da preferência de pagamento (ou payment_id no caso de Pix)
      * @return array Resultado da operação
      */
     public function checkPaymentStatus($preferenceId) {
@@ -225,8 +214,8 @@ class MercadoPagoPayment {
             
             $accessToken = $adminSettings['access_token'];
             
-            // Buscar pagamentos associados à preferência
-            $url = "https://api.mercadopago.com/v1/payments/search?preference_id={$preferenceId}";
+            // Buscar pagamento diretamente pelo ID
+            $url = "https://api.mercadopago.com/v1/payments/{$preferenceId}";
             
             $ch = curl_init();
             curl_setopt_array($ch, [
@@ -253,36 +242,17 @@ class MercadoPagoPayment {
             if ($httpCode !== 200) {
                 return [
                     'success' => false, 
-                    'message' => 'Erro ao buscar pagamentos: ' . $response,
+                    'message' => 'Erro ao buscar pagamento: ' . $response,
                     'http_code' => $httpCode
                 ];
             }
             
-            $searchResult = json_decode($response, true);
-            
-            if (!isset($searchResult['results'])) {
-                return [
-                    'success' => false, 
-                    'message' => 'Resposta inválida do Mercado Pago'
-                ];
-            }
-            
-            if (empty($searchResult['results'])) {
-                return [
-                    'success' => true,
-                    'status' => 'pending',
-                    'message' => 'Nenhum pagamento encontrado para esta preferência'
-                ];
-            }
-            
-            // Pegar o pagamento mais recente
-            $payment = $searchResult['results'][0];
+            $payment = json_decode($response, true);
             
             // Atualizar o status do pagamento no banco de dados
             $stmt = $this->db->prepare("
                 UPDATE mercadopago_payments 
                 SET 
-                    payment_id = ?, 
                     status = ?, 
                     status_detail = ?, 
                     payment_method = ?, 
@@ -292,7 +262,6 @@ class MercadoPagoPayment {
             ");
             
             $stmt->execute([
-                $payment['id'],
                 $payment['status'],
                 $payment['status_detail'],
                 $payment['payment_method_id'] ?? null,

@@ -45,7 +45,7 @@ if ($mercadoPagoConfigured && isset($_POST['generate_payment'])) {
     $accessValue = $adminSettings['user_access_value'];
     $description = "Renovação de Acesso - FutBanner";
     
-    $result = $mercadoPagoPayment->createPaymentPreference($userId, $description, $accessValue);
+    $result = $mercadoPagoPayment->createPixPayment($userId, $description, $accessValue);
     
     if ($result['success']) {
         $preferenceId = $result['preference_id'];
