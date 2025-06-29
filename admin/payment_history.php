@@ -18,11 +18,8 @@ $userCredits = $user->getUserCredits($userId);
 $subUsers = $user->getUsersByParentId($userId);
 $subUserIds = array_column($subUsers, 'id');
 
-// Criar array com o ID do master e os IDs dos usuários gerenciados
-$allUserIds = array_merge([$userId], $subUserIds);
-
-// Obter histórico de pagamentos para o master e seus usuários
-$payments = $mercadoPago->getUserPaymentHistory($allUserIds, 100);
+// Obter histórico de pagamentos apenas dos usuários gerenciados
+$payments = $mercadoPago->getUserPaymentHistory($subUserIds, 100);
 
 $pageTitle = "Histórico de Pagamentos";
 include "includes/header.php";
@@ -33,7 +30,7 @@ include "includes/header.php";
         <i class="fas fa-history text-primary-500 mr-3"></i>
         Histórico de Pagamentos
     </h1>
-    <p class="page-subtitle">Visualize todos os seus pagamentos e transações</p>
+    <p class="page-subtitle">Visualize todos os pagamentos dos seus usuários</p>
 </div>
 
 <!-- Stats Cards -->
@@ -105,8 +102,8 @@ include "includes/header.php";
 <!-- Payments Table -->
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Histórico Completo</h3>
-        <p class="card-subtitle">Todos os seus pagamentos e transações</p>
+        <h3 class="card-title">Histórico de Pagamentos</h3>
+        <p class="card-subtitle">Pagamentos realizados pelos seus usuários</p>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -130,17 +127,12 @@ include "includes/header.php";
                         </tr>
                     <?php else: ?>
                         <?php foreach ($payments as $payment): 
-                            // Determinar se o pagamento é do master ou de um sub-usuário
-                            $isSubUserPayment = $payment['user_id'] != $userId;
-                            
-                            // Obter nome do usuário se for um sub-usuário
+                            // Obter nome do usuário
                             $paymentUsername = '';
-                            if ($isSubUserPayment) {
-                                foreach ($subUsers as $subUser) {
-                                    if ($subUser['id'] == $payment['user_id']) {
-                                        $paymentUsername = $subUser['username'];
-                                        break;
-                                    }
+                            foreach ($subUsers as $subUser) {
+                                if ($subUser['id'] == $payment['user_id']) {
+                                    $paymentUsername = $subUser['username'];
+                                    break;
                                 }
                             }
                         ?>
@@ -148,17 +140,10 @@ include "includes/header.php";
                                 <td><?php echo $payment['id']; ?></td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($payment['created_at'])); ?></td>
                                 <td>
-                                    <?php if ($isSubUserPayment): ?>
-                                        <span class="user-badge">
-                                            <i class="fas fa-user"></i>
-                                            <?php echo htmlspecialchars($paymentUsername); ?>
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="user-badge self">
-                                            <i class="fas fa-user-shield"></i>
-                                            Você
-                                        </span>
-                                    <?php endif; ?>
+                                    <span class="user-badge">
+                                        <i class="fas fa-user"></i>
+                                        <?php echo htmlspecialchars($paymentUsername); ?>
+                                    </span>
                                 </td>
                                 <td>
                                     <?php if ($payment['payment_purpose'] === 'subscription'): ?>
@@ -293,11 +278,6 @@ include "includes/header.php";
         background: var(--bg-tertiary);
         color: var(--text-secondary);
     }
-    
-    .user-badge.self {
-        background: var(--primary-50);
-        color: var(--primary-600);
-    }
 
     /* Dark theme adjustments */
     [data-theme="dark"] .status-approved {
@@ -323,11 +303,6 @@ include "includes/header.php";
     [data-theme="dark"] .type-credit {
         background: rgba(245, 158, 11, 0.1);
         color: var(--warning-400);
-    }
-    
-    [data-theme="dark"] .user-badge.self {
-        background: rgba(59, 130, 246, 0.1);
-        color: var(--primary-400);
     }
 </style>
 
