@@ -19,7 +19,7 @@ $allowedPages = ['payment.php']; // Páginas permitidas para usuários expirados
 
 // Verificar expiração para usuários com sessão completa
 if ($isLoggedIn && isset($_SESSION["user_id"])) {
-    require_once 'classes/User.php';
+    require_once __DIR__ . '/../classes/User.php';
     $user = new User();
     $userData = $user->getUserById($_SESSION["user_id"]);
     
@@ -47,7 +47,7 @@ if ($isLoggedIn && isset($_SESSION["user_id"])) {
 // Verificar para usuários com sessão temporária
 if ($isTempUser) {
     // Verificar se o usuário ainda está expirado
-    require_once 'classes/User.php';
+    require_once __DIR__ . '/../classes/User.php';
     $user = new User();
     $tempUserData = $user->getUserById($_SESSION["temp_user_id"]);
     
@@ -825,7 +825,7 @@ error_log("Header.php - Current page: $currentPage, isLoggedIn: " . ($isLoggedIn
 
                 <div class="nav-section">
                     <div class="nav-section-title">Sistema</div>
-                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'): ?>
+                    <?php if ($isLoggedIn || $isTempUser): ?>
                     <a href="payment.php" class="nav-item">
                         <i class="fas fa-credit-card"></i>
                         <span>Pagamento</span>
