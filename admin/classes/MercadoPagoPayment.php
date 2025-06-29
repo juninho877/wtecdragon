@@ -36,10 +36,12 @@ class MercadoPagoPayment {
             related_quantity INT DEFAULT 1,
             is_processed BOOLEAN DEFAULT FALSE,
             payment_date TIMESTAMP,
+            owner_user_id INT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             
             FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+            FOREIGN KEY (owner_user_id) REFERENCES usuarios(id) ON DELETE SET NULL,
             INDEX idx_user_id (user_id),
             INDEX idx_preference_id (preference_id),
             INDEX idx_payment_id (payment_id),
@@ -50,6 +52,23 @@ class MercadoPagoPayment {
         
         try {
             $this->db->exec($sql);
+            
+            // Check if owner_user_id column exists, add it if not
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'mercadopago_payments' AND COLUMN_NAME = 'owner_user_id'
+            ");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                $this->db->exec("
+                    ALTER TABLE mercadopago_payments 
+                    ADD COLUMN owner_user_id INT NULL AFTER payment_date,
+                    ADD FOREIGN KEY (owner_user_id) REFERENCES usuarios(id) ON DELETE SET NULL
+                ");
+            }
         } catch (PDOException $e) {
             // Silently handle error
         }
@@ -65,17 +84,26 @@ class MercadoPagoPayment {
      */
     public function createPixPayment($userId, $description, $amount) {
         try {
-            // Buscar configurações do admin (ID 1)
-            $adminSettings = $this->mercadoPagoSettings->getSettings(1);
+            // First, determine the owner of the payment
+            $stmt = $this->db->prepare("SELECT parent_user_id FROM usuarios WHERE id = ?");
+            $stmt->execute([$userId]);
+            $parentId = $stmt->fetchColumn();
             
-            if (!$adminSettings || empty($adminSettings['access_token'])) {
+            // If user has a parent, use parent's Mercado Pago settings
+            // Otherwise, use admin (ID 1) settings
+            $ownerUserId = $parentId ?: 1;
+            
+            // Buscar configurações do dono do pagamento
+            $ownerSettings = $this->mercadoPagoSettings->getSettings($ownerUserId);
+            
+            if (!$ownerSettings || empty($ownerSettings['access_token'])) {
                 return [
                     'success' => false, 
                     'message' => 'Configurações do Mercado Pago não encontradas. Configure primeiro em Mercado Pago > Configurações.'
                 ];
             }
             
-            $accessToken = $adminSettings['access_token'];
+            $accessToken = $ownerSettings['access_token'];
             
             // Buscar dados do usuário
             $stmt = $this->db->prepare("SELECT email FROM usuarios WHERE id = ?");
@@ -160,8 +188,8 @@ class MercadoPagoPayment {
             // Registrar o pagamento no banco de dados
             $stmt = $this->db->prepare("
                 INSERT INTO mercadopago_payments 
-                (user_id, payment_id, preference_id, external_reference, status, transaction_amount, payment_purpose, related_quantity) 
-                VALUES (?, ?, ?, ?, 'pending', ?, 'subscription', 1)
+                (user_id, payment_id, preference_id, external_reference, status, transaction_amount, payment_purpose, related_quantity, owner_user_id) 
+                VALUES (?, ?, ?, ?, 'pending', ?, 'subscription', 1, ?)
             ");
             
             $stmt->execute([
@@ -169,7 +197,8 @@ class MercadoPagoPayment {
                 $payment['id'], // payment_id
                 $payment['id'], // preference_id (usando payment_id como solução temporária)
                 $externalReference,
-                $amount
+                $amount,
+                $ownerUserId
             ]);
             
             return [
@@ -197,17 +226,35 @@ class MercadoPagoPayment {
      */
     public function checkPaymentStatus($preferenceId) {
         try {
-            // Buscar configurações do admin (ID 1)
-            $adminSettings = $this->mercadoPagoSettings->getSettings(1);
+            // First, get the owner_user_id from the payment record
+            $stmt = $this->db->prepare("
+                SELECT owner_user_id, user_id, payment_purpose, related_quantity, is_processed 
+                FROM mercadopago_payments 
+                WHERE payment_id = ? OR preference_id = ?
+            ");
+            $stmt->execute([$preferenceId, $preferenceId]);
+            $paymentRecord = $stmt->fetch();
             
-            if (!$adminSettings || empty($adminSettings['access_token'])) {
+            if (!$paymentRecord) {
+                return [
+                    'success' => false, 
+                    'message' => 'Pagamento não encontrado no sistema'
+                ];
+            }
+            
+            $ownerUserId = $paymentRecord['owner_user_id'] ?: 1; // Default to admin if not set
+            
+            // Buscar configurações do dono do pagamento
+            $ownerSettings = $this->mercadoPagoSettings->getSettings($ownerUserId);
+            
+            if (!$ownerSettings || empty($ownerSettings['access_token'])) {
                 return [
                     'success' => false, 
                     'message' => 'Configurações do Mercado Pago não encontradas'
                 ];
             }
             
-            $accessToken = $adminSettings['access_token'];
+            $accessToken = $ownerSettings['access_token'];
             
             // Buscar pagamento diretamente pelo ID
             $url = "https://api.mercadopago.com/v1/payments/{$preferenceId}";
@@ -244,14 +291,10 @@ class MercadoPagoPayment {
             
             $payment = json_decode($response, true);
             
-            // Buscar informações do pagamento no banco de dados
-            $stmt = $this->db->prepare("
-                SELECT payment_purpose, related_quantity, is_processed
-                FROM mercadopago_payments 
-                WHERE payment_id = ? OR preference_id = ?
-            ");
-            $stmt->execute([$preferenceId, $preferenceId]);
-            $paymentInfo = $stmt->fetch();
+            $userId = $paymentRecord['user_id'];
+            $paymentPurpose = $paymentRecord['payment_purpose'];
+            $relatedQuantity = $paymentRecord['related_quantity'];
+            $isProcessed = $paymentRecord['is_processed'];
             
             // Atualizar o status do pagamento no banco de dados
             $stmt = $this->db->prepare("
@@ -276,37 +319,25 @@ class MercadoPagoPayment {
             ]);
             
             // Verificar se o pagamento foi aprovado e ainda não foi processado
-            if ($payment['status'] === 'approved' && $paymentInfo && !$paymentInfo['is_processed']) {
-                // Buscar o usuário associado a este pagamento
+            if ($payment['status'] === 'approved' && !$isProcessed) {
+                // Processar com base no tipo de pagamento
+                if ($paymentPurpose === 'subscription') {
+                    // Renovar acesso do usuário
+                    $this->renewUserAccess($userId, $relatedQuantity);
+                } elseif ($paymentPurpose === 'credit_purchase') {
+                    // Adicionar créditos ao usuário
+                    require_once 'User.php';
+                    $user = new User();
+                    $user->purchaseCredits($userId, $relatedQuantity, $preferenceId);
+                }
+                
+                // Marcar como processado
                 $stmt = $this->db->prepare("
-                    SELECT user_id FROM mercadopago_payments 
+                    UPDATE mercadopago_payments 
+                    SET is_processed = TRUE
                     WHERE payment_id = ? OR preference_id = ?
                 ");
                 $stmt->execute([$preferenceId, $preferenceId]);
-                $paymentData = $stmt->fetch();
-                
-                if ($paymentData) {
-                    $userId = $paymentData['user_id'];
-                    
-                    // Processar com base no tipo de pagamento
-                    if ($paymentInfo['payment_purpose'] === 'subscription') {
-                        // Renovar acesso do usuário
-                        $this->renewUserAccess($userId, $paymentInfo['related_quantity']);
-                    } elseif ($paymentInfo['payment_purpose'] === 'credit_purchase') {
-                        // Adicionar créditos ao usuário
-                        require_once 'User.php';
-                        $user = new User();
-                        $user->purchaseCredits($userId, $paymentInfo['related_quantity'], $preferenceId);
-                    }
-                    
-                    // Marcar como processado
-                    $stmt = $this->db->prepare("
-                        UPDATE mercadopago_payments 
-                        SET is_processed = TRUE
-                        WHERE payment_id = ? OR preference_id = ?
-                    ");
-                    $stmt->execute([$preferenceId, $preferenceId]);
-                }
             }
             
             return [
@@ -316,9 +347,9 @@ class MercadoPagoPayment {
                 'payment_method' => $payment['payment_method_id'] ?? null,
                 'payment_type' => $payment['payment_type_id'] ?? null,
                 'date' => $payment['date_approved'] ?? $payment['date_created'],
-                'payment_purpose' => $paymentInfo['payment_purpose'] ?? 'subscription',
-                'related_quantity' => $paymentInfo['related_quantity'] ?? 1,
-                'is_processed' => $paymentInfo['is_processed'] ?? false
+                'payment_purpose' => $paymentPurpose,
+                'related_quantity' => $relatedQuantity,
+                'is_processed' => $isProcessed
             ];
             
         } catch (Exception $e) {
@@ -460,20 +491,39 @@ class MercadoPagoPayment {
                 ];
             }
             
-            // Buscar configurações do admin (ID 1)
-            $adminSettings = $this->mercadoPagoSettings->getSettings(1);
+            // Obter detalhes do pagamento
+            $paymentId = $data['data']['id'];
             
-            if (!$adminSettings || empty($adminSettings['access_token'])) {
+            // First, check if this payment already exists in our database
+            $stmt = $this->db->prepare("
+                SELECT owner_user_id, user_id, payment_purpose, related_quantity, is_processed 
+                FROM mercadopago_payments 
+                WHERE payment_id = ? OR preference_id = ?
+            ");
+            $stmt->execute([$paymentId, $paymentId]);
+            $paymentRecord = $stmt->fetch();
+            
+            // If payment exists, use the owner_user_id from the record
+            if ($paymentRecord) {
+                $ownerUserId = $paymentRecord['owner_user_id'] ?: 1; // Default to admin if not set
+            } else {
+                // If payment doesn't exist yet, we'll need to determine the owner later
+                $ownerUserId = 1; // Default to admin
+            }
+            
+            // Buscar configurações do dono do pagamento
+            $ownerSettings = $this->mercadoPagoSettings->getSettings($ownerUserId);
+            
+            if (!$ownerSettings || empty($ownerSettings['access_token'])) {
                 return [
                     'success' => false, 
                     'message' => 'Configurações do Mercado Pago não encontradas'
                 ];
             }
             
-            $accessToken = $adminSettings['access_token'];
+            $accessToken = $ownerSettings['access_token'];
             
             // Obter detalhes do pagamento
-            $paymentId = $data['data']['id'];
             $url = "https://api.mercadopago.com/v1/payments/{$paymentId}";
             
             $ch = curl_init();
@@ -507,15 +557,8 @@ class MercadoPagoPayment {
                 ];
             }
             
-            // Buscar o pagamento no banco de dados
-            $stmt = $this->db->prepare("
-                SELECT user_id, payment_purpose, related_quantity, is_processed FROM mercadopago_payments 
-                WHERE preference_id = ? OR payment_id = ?
-            ");
-            $stmt->execute([$payment['preference_id'], $payment['id']]);
-            $paymentData = $stmt->fetch();
-            
-            if (!$paymentData) {
+            // If payment doesn't exist in our database yet, try to determine the owner and user
+            if (!$paymentRecord) {
                 // Pagamento não encontrado, tentar buscar pelo external_reference
                 if (isset($payment['external_reference'])) {
                     $externalRef = $payment['external_reference'];
@@ -528,9 +571,17 @@ class MercadoPagoPayment {
                     if (preg_match('/^USER_(\d+)_/', $externalRef, $matches)) {
                         $userId = $matches[1];
                         $paymentPurpose = 'subscription';
+                        
+                        // Determine the owner (parent user or admin)
+                        $stmt = $this->db->prepare("SELECT parent_user_id FROM usuarios WHERE id = ?");
+                        $stmt->execute([$userId]);
+                        $parentId = $stmt->fetchColumn();
+                        $ownerUserId = $parentId ?: 1; // Use parent if exists, otherwise admin
+                        
                     } elseif (preg_match('/^CREDIT_(\d+)_/', $externalRef, $matches)) {
                         $userId = $matches[1];
                         $paymentPurpose = 'credit_purchase';
+                        $ownerUserId = 1; // Credit purchases always go to admin
                     } else {
                         return [
                             'success' => false, 
@@ -541,8 +592,8 @@ class MercadoPagoPayment {
                     // Registrar o pagamento
                     $stmt = $this->db->prepare("
                         INSERT INTO mercadopago_payments 
-                        (user_id, payment_id, preference_id, external_reference, status, status_detail, payment_method, payment_type, transaction_amount, payment_purpose, related_quantity, payment_date) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (user_id, payment_id, preference_id, external_reference, status, status_detail, payment_method, payment_type, transaction_amount, payment_purpose, related_quantity, payment_date, owner_user_id) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     
                     $stmt->execute([
@@ -557,7 +608,8 @@ class MercadoPagoPayment {
                         $payment['transaction_amount'],
                         $paymentPurpose,
                         $relatedQuantity,
-                        date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created']))
+                        date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created'])),
+                        $ownerUserId
                     ]);
                     
                     // Se o pagamento foi aprovado, processar
@@ -594,10 +646,10 @@ class MercadoPagoPayment {
                 ];
             }
             
-            $userId = $paymentData['user_id'];
-            $paymentPurpose = $paymentData['payment_purpose'];
-            $relatedQuantity = $paymentData['related_quantity'];
-            $isProcessed = $paymentData['is_processed'];
+            $userId = $paymentRecord['user_id'];
+            $paymentPurpose = $paymentRecord['payment_purpose'];
+            $relatedQuantity = $paymentRecord['related_quantity'];
+            $isProcessed = $paymentRecord['is_processed'];
             
             // Atualizar o status do pagamento
             $stmt = $this->db->prepare("

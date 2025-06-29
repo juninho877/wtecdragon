@@ -56,8 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // Criar descrição
         $description = "Compra de {$creditsToBuy} créditos - Usuário: {$userData['username']}";
         
-        // Criar pagamento
-        $result = $mercadoPago->createCreditPayment($userId, $description, $totalAmount, $creditsToBuy);
+        // Criar pagamento - always use admin (ID 1) as the owner for credit purchases
+        $result = $mercadoPago->createCreditPayment($userId, $description, $totalAmount, $creditsToBuy, 1);
         
         if ($result['success']) {
             $_SESSION['credit_payment_qr_code'] = $result['qr_code'];

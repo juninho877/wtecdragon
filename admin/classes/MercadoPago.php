@@ -36,10 +36,12 @@ class MercadoPago {
             related_quantity INT DEFAULT 1,
             is_processed BOOLEAN DEFAULT FALSE,
             payment_date TIMESTAMP,
+            owner_user_id INT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             
             FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+            FOREIGN KEY (owner_user_id) REFERENCES usuarios(id) ON DELETE SET NULL,
             INDEX idx_user_id (user_id),
             INDEX idx_preference_id (preference_id),
             INDEX idx_payment_id (payment_id),
@@ -50,6 +52,23 @@ class MercadoPago {
         
         try {
             $this->db->exec($sql);
+            
+            // Check if owner_user_id column exists, add it if not
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'mercadopago_payments' AND COLUMN_NAME = 'owner_user_id'
+            ");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                $this->db->exec("
+                    ALTER TABLE mercadopago_payments 
+                    ADD COLUMN owner_user_id INT NULL AFTER payment_date,
+                    ADD FOREIGN KEY (owner_user_id) REFERENCES usuarios(id) ON DELETE SET NULL
+                ");
+            }
         } catch (PDOException $e) {
             // Silently handle error
         }
@@ -61,21 +80,34 @@ class MercadoPago {
      * @param int $userId ID do usuário
      * @param float $amount Valor do pagamento
      * @param int $months Número de meses de assinatura
+     * @param int|null $ownerUserId ID do usuário dono do pagamento (admin ou master)
      * @return array Resultado da operação
      */
-    public function createSubscriptionPayment($userId, $amount, $months = 1) {
+    public function createSubscriptionPayment($userId, $amount, $months = 1, $ownerUserId = null) {
         try {
-            // Buscar configurações do admin (ID 1)
-            $adminSettings = $this->mercadoPagoSettings->getSettings(1);
+            // Determine the owner of the payment (who receives the money)
+            if ($ownerUserId === null) {
+                // If no owner specified, check if user has a parent (master)
+                $stmt = $this->db->prepare("SELECT parent_user_id FROM usuarios WHERE id = ?");
+                $stmt->execute([$userId]);
+                $parentId = $stmt->fetchColumn();
+                
+                // If user has a parent, use parent's Mercado Pago settings
+                // Otherwise, use admin (ID 1) settings
+                $ownerUserId = $parentId ?: 1;
+            }
             
-            if (!$adminSettings || empty($adminSettings['access_token'])) {
+            // Buscar configurações do dono do pagamento (admin ou master)
+            $ownerSettings = $this->mercadoPagoSettings->getSettings($ownerUserId);
+            
+            if (!$ownerSettings || empty($ownerSettings['access_token'])) {
                 return [
                     'success' => false, 
                     'message' => 'Configurações do Mercado Pago não encontradas'
                 ];
             }
             
-            $accessToken = $adminSettings['access_token'];
+            $accessToken = $ownerSettings['access_token'];
             
             // Buscar dados do usuário
             $stmt = $this->db->prepare("SELECT username, email FROM usuarios WHERE id = ?");
@@ -167,8 +199,8 @@ class MercadoPago {
             // Registrar o pagamento no banco de dados
             $stmt = $this->db->prepare("
                 INSERT INTO mercadopago_payments 
-                (user_id, payment_id, preference_id, external_reference, status, transaction_amount, payment_purpose, related_quantity) 
-                VALUES (?, ?, ?, ?, ?, ?, 'subscription', ?)
+                (user_id, payment_id, preference_id, external_reference, status, transaction_amount, payment_purpose, related_quantity, owner_user_id) 
+                VALUES (?, ?, ?, ?, ?, ?, 'subscription', ?, ?)
             ");
             
             $stmt->execute([
@@ -178,7 +210,8 @@ class MercadoPago {
                 $externalReference,
                 $payment['status'],
                 $amount,
-                $months
+                $months,
+                $ownerUserId
             ]);
             
             $result = [
@@ -205,21 +238,27 @@ class MercadoPago {
      * @param string $description Descrição do pagamento
      * @param float $amount Valor do pagamento
      * @param int $credits Quantidade de créditos sendo comprados
+     * @param int|null $ownerUserId ID do usuário dono do pagamento (admin)
      * @return array Resultado da operação
      */
-    public function createCreditPayment($userId, $description, $amount, $credits = 1) {
+    public function createCreditPayment($userId, $description, $amount, $credits = 1, $ownerUserId = null) {
         try {
-            // Buscar configurações do admin (ID 1)
-            $adminSettings = $this->mercadoPagoSettings->getSettings(1);
+            // For credit purchases, the owner is always admin (ID 1) if not specified
+            if ($ownerUserId === null) {
+                $ownerUserId = 1; // Admin ID
+            }
             
-            if (!$adminSettings || empty($adminSettings['access_token'])) {
+            // Buscar configurações do admin
+            $ownerSettings = $this->mercadoPagoSettings->getSettings($ownerUserId);
+            
+            if (!$ownerSettings || empty($ownerSettings['access_token'])) {
                 return [
                     'success' => false, 
                     'message' => 'Configurações do Mercado Pago não encontradas'
                 ];
             }
             
-            $accessToken = $adminSettings['access_token'];
+            $accessToken = $ownerSettings['access_token'];
             
             // Buscar dados do usuário
             $stmt = $this->db->prepare("SELECT username, email FROM usuarios WHERE id = ?");
@@ -308,8 +347,8 @@ class MercadoPago {
             // Registrar o pagamento no banco de dados
             $stmt = $this->db->prepare("
                 INSERT INTO mercadopago_payments 
-                (user_id, payment_id, preference_id, external_reference, status, transaction_amount, payment_purpose, related_quantity) 
-                VALUES (?, ?, ?, ?, ?, ?, 'credit_purchase', ?)
+                (user_id, payment_id, preference_id, external_reference, status, transaction_amount, payment_purpose, related_quantity, owner_user_id) 
+                VALUES (?, ?, ?, ?, ?, ?, 'credit_purchase', ?, ?)
             ");
             
             $stmt->execute([
@@ -319,7 +358,8 @@ class MercadoPago {
                 $externalReference,
                 $payment['status'],
                 $amount,
-                $credits
+                $credits,
+                $ownerUserId
             ]);
             
             $result = [
@@ -347,17 +387,28 @@ class MercadoPago {
      */
     public function checkPaymentStatus($paymentId) {
         try {
-            // Buscar configurações do admin (ID 1)
-            $adminSettings = $this->mercadoPagoSettings->getSettings(1);
+            // First, get the owner_user_id from the payment record
+            $stmt = $this->db->prepare("
+                SELECT owner_user_id 
+                FROM mercadopago_payments 
+                WHERE payment_id = ? OR preference_id = ?
+            ");
+            $stmt->execute([$paymentId, $paymentId]);
+            $paymentRecord = $stmt->fetch();
             
-            if (!$adminSettings || empty($adminSettings['access_token'])) {
+            $ownerUserId = $paymentRecord ? $paymentRecord['owner_user_id'] : 1; // Default to admin if not found
+            
+            // Get the Mercado Pago settings for the owner
+            $ownerSettings = $this->mercadoPagoSettings->getSettings($ownerUserId);
+            
+            if (!$ownerSettings || empty($ownerSettings['access_token'])) {
                 return [
                     'success' => false, 
                     'message' => 'Configurações do Mercado Pago não encontradas'
                 ];
             }
             
-            $accessToken = $adminSettings['access_token'];
+            $accessToken = $ownerSettings['access_token'];
             
             // Buscar pagamento diretamente pelo ID
             $url = "https://api.mercadopago.com/v1/payments/{$paymentId}";
@@ -439,6 +490,7 @@ class MercadoPago {
                         payment_purpose,
                         related_quantity,
                         payment_date,
+                        owner_user_id,
                         created_at
                     FROM mercadopago_payments 
                     WHERE user_id IN ({$placeholders})
@@ -458,6 +510,7 @@ class MercadoPago {
                         payment_purpose,
                         related_quantity,
                         payment_date,
+                        owner_user_id,
                         created_at
                     FROM mercadopago_payments 
                     WHERE user_id = ?

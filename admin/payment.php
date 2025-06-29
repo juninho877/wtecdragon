@@ -47,16 +47,25 @@ if ($userData['expires_at'] && strtotime($userData['expires_at']) < time()) {
     $isExpired = true;
 }
 
-// Buscar configurações do admin (ID 1)
-$adminSettings = $mercadoPagoSettings->getSettings(1);
-if (!$adminSettings || empty($adminSettings['access_token'])) {
-    // Fallback if settings are missing
+// Determine the owner of the payment (who receives the money)
+// If user has a parent (master), use parent's Mercado Pago settings
+// Otherwise, use admin (ID 1) settings
+$parentUserId = $userData['parent_user_id'] ?? null;
+$ownerUserId = $parentUserId ?: 1;
+
+// Buscar configurações do dono do pagamento
+$ownerSettings = $mercadoPagoSettings->getSettings($ownerUserId);
+if (!$ownerSettings || empty($ownerSettings['access_token'])) {
+    // Fallback to admin settings if owner has no settings
+    $ownerSettings = $mercadoPagoSettings->getSettings(1);
+    $ownerUserId = 1;
 }
-$basePrice = $adminSettings['user_access_value'] ?? 29.90;
-$whatsappNumber = $adminSettings['whatsapp_number'] ?? '5511999999999';
-$discount3Months = $adminSettings['discount_3_months_percent'] ?? 5.00;
-$discount6Months = $adminSettings['discount_6_months_percent'] ?? 10.00;
-$discount12Months = $adminSettings['discount_12_months_percent'] ?? 15.00;
+
+$basePrice = $ownerSettings['user_access_value'] ?? 29.90;
+$whatsappNumber = $ownerSettings['whatsapp_number'] ?? '5511999999999';
+$discount3Months = $ownerSettings['discount_3_months_percent'] ?? 5.00;
+$discount6Months = $ownerSettings['discount_6_months_percent'] ?? 10.00;
+$discount12Months = $ownerSettings['discount_12_months_percent'] ?? 15.00;
 
 // Calcular preços com desconto
 $price1Month = $basePrice;
@@ -89,7 +98,7 @@ if (($isExpired || $isExpiredRedirect) && !$paymentInProgress && !isset($success
     $_POST['months'] = 1;
     
     // Create payment
-    $result = $mercadoPago->createSubscriptionPayment($userId, $price1Month, 1);
+    $result = $mercadoPago->createSubscriptionPayment($userId, $price1Month, 1, $ownerUserId);
     
     if ($result['success']) {
         $_SESSION['payment_qr_code'] = $result['qr_code'];
@@ -114,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $totalAmount = $amount;
         
         // Criar pagamento
-        $result = $mercadoPago->createSubscriptionPayment($userId, $totalAmount, $months);
+        $result = $mercadoPago->createSubscriptionPayment($userId, $totalAmount, $months, $ownerUserId);
         
         if ($result['success']) {
             $_SESSION['payment_qr_code'] = $result['qr_code'];
