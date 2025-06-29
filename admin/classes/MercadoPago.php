@@ -388,145 +388,16 @@ class MercadoPago {
             
             $payment = json_decode($response, true);
             
-            // Buscar informações do pagamento no banco de dados
-            $stmt = $this->db->prepare("
-                SELECT payment_purpose, related_quantity, is_processed
-                FROM mercadopago_payments 
-                WHERE payment_id = ? OR preference_id = ?
-            ");
-            $stmt->execute([$paymentId, $paymentId]);
-            $paymentInfo = $stmt->fetch();
-            
-            // Atualizar o status do pagamento no banco de dados
-            $stmt = $this->db->prepare("
-                UPDATE mercadopago_payments 
-                SET 
-                    status = ?, 
-                    status_detail = ?, 
-                    payment_method = ?, 
-                    payment_type = ?, 
-                    payment_date = ?
-                WHERE payment_id = ? OR preference_id = ?
-            ");
-            
-            $paymentDate = isset($payment['date_approved']) ? $payment['date_approved'] : $payment['date_created'];
-            
-            $stmt->execute([
-                $payment['status'],
-                $payment['status_detail'] ?? null,
-                $payment['payment_method_id'] ?? null,
-                $payment['payment_type_id'] ?? null,
-                date('Y-m-d H:i:s', strtotime($paymentDate)),
-                $paymentId,
-                $paymentId
-            ]);
-            
-            // Processar pagamento aprovado se ainda não foi processado
-            if ($payment['status'] === 'approved' && $paymentInfo && !$paymentInfo['is_processed']) {
-                // Buscar o usuário associado a este pagamento
-                $stmt = $this->db->prepare("
-                    SELECT user_id FROM mercadopago_payments 
-                    WHERE payment_id = ? OR preference_id = ?
-                ");
-                $stmt->execute([$paymentId, $paymentId]);
-                $paymentData = $stmt->fetch();
-                
-                if ($paymentData) {
-                    $userId = $paymentData['user_id'];
-                    
-                    // Processar com base no tipo de pagamento
-                    if ($paymentInfo['payment_purpose'] === 'subscription') {
-                        // Renovar acesso do usuário
-                        $this->renewUserAccess($userId, $paymentInfo['related_quantity']);
-                    } elseif ($paymentInfo['payment_purpose'] === 'credit_purchase') {
-                        // Adicionar créditos ao usuário
-                        require_once 'User.php';
-                        $user = new User();
-                        $user->purchaseCredits($userId, $paymentInfo['related_quantity'], $paymentId);
-                    }
-                    
-                    // Marcar como processado
-                    $stmt = $this->db->prepare("
-                        UPDATE mercadopago_payments 
-                        SET is_processed = TRUE
-                        WHERE payment_id = ? OR preference_id = ?
-                    ");
-                    $stmt->execute([$paymentId, $paymentId]);
-                }
-            }
-            
             return [
                 'success' => true,
-                'status' => $payment['status'],
-                'status_detail' => $payment['status_detail'] ?? null,
-                'payment_method' => $payment['payment_method_id'] ?? null,
-                'payment_type' => $payment['payment_type_id'] ?? null,
-                'date' => $paymentDate,
-                'payment_purpose' => $paymentInfo['payment_purpose'] ?? 'subscription',
-                'related_quantity' => $paymentInfo['related_quantity'] ?? 1,
-                'is_processed' => $paymentInfo['is_processed'] ?? false
+                'payment' => $payment
             ];
-            
         } catch (Exception $e) {
             error_log("Erro ao verificar status do pagamento: " . $e->getMessage());
             return [
                 'success' => false, 
                 'message' => 'Erro interno: ' . $e->getMessage()
             ];
-        }
-    }
-    
-    /**
-     * Renovar acesso do usuário
-     * 
-     * @param int $userId ID do usuário
-     * @param int $months Número de meses a adicionar
-     * @return bool Sucesso da operação
-     */
-    public function renewUserAccess($userId, $months = 1) {
-        try {
-            // Buscar dados atuais do usuário
-            $stmt = $this->db->prepare("
-                SELECT expires_at FROM usuarios 
-                WHERE id = ?
-            ");
-            $stmt->execute([$userId]);
-            $userData = $stmt->fetch();
-            
-            // Calcular nova data de expiração
-            $newExpiryDate = new DateTime();
-            
-            // Se o usuário já tem uma data de expiração e ela é futura, adicionar meses a partir dela
-            if ($userData && !empty($userData['expires_at'])) {
-                $currentExpiry = new DateTime($userData['expires_at']);
-                $today = new DateTime();
-                
-                if ($currentExpiry > $today) {
-                    $newExpiryDate = $currentExpiry;
-                }
-            }
-            
-            // Adicionar meses
-            $newExpiryDate->modify("+{$months} months");
-            
-            // Atualizar usuário
-            $stmt = $this->db->prepare("
-                UPDATE usuarios 
-                SET 
-                    status = 'active',
-                    expires_at = ?
-                WHERE id = ?
-            ");
-            
-            $stmt->execute([
-                $newExpiryDate->format('Y-m-d'),
-                $userId
-            ]);
-            
-            return true;
-        } catch (Exception $e) {
-            error_log("Erro ao renovar acesso do usuário: " . $e->getMessage());
-            return false;
         }
     }
     

@@ -7,8 +7,8 @@
  * e renovar o acesso dos usuários quando o pagamento for aprovado.
  * 
  * Configuração de Cron (exemplo para execução a cada 5 minutos):
- *  *///5 * * * * /usr/bin/php /caminho/completo/para/seu/projeto/admin/check_mp_payments_cron.php >> /caminho/completo/para/seu/projeto/admin/logs/mp_cron.log 2>&1
- 
+ *  *//*5 * * * * /usr/bin/php /caminho/completo/para/seu/projeto/admin/check_mp_payments_cron.php >> /caminho/completo/para/seu/projeto/admin/logs/mp_cron.log 2>&1
+ */
 
 // Configurar error reporting e logging
 error_reporting(E_ALL);
@@ -38,11 +38,9 @@ try {
     // Incluir classes necessárias
     require_once __DIR__ . '/config/database.php';
     require_once __DIR__ . '/classes/MercadoPagoPayment.php';
-    require_once __DIR__ . '/classes/User.php';
 
     $db = Database::getInstance()->getConnection();
     $mercadoPagoPayment = new MercadoPagoPayment();
-    $user = new User();
 
     // Buscar pagamentos pendentes
     // Limitar a pagamentos criados nas últimas 24 horas para evitar reprocessar pagamentos muito antigos
@@ -75,30 +73,8 @@ try {
             if ($result['success']) {
                 log_mp_cron_message("Status atualizado para preference_id: $preferenceId. Novo status: " . $result['status']);
                 
-                // Se o pagamento foi aprovado e ainda não foi processado
-                if ($result['status'] === 'approved' && !$isProcessed) {
-                    log_mp_cron_message("Pagamento aprovado e não processado. Processando agora...");
-                    
-                    // Processar com base no tipo de pagamento
-                    if ($paymentPurpose === 'subscription') {
-                        // Renovar acesso do usuário
-                        $mercadoPagoPayment->renewUserAccess($userId, $relatedQuantity);
-                        log_mp_cron_message("Assinatura renovada para user_id: $userId por $relatedQuantity meses");
-                    } elseif ($paymentPurpose === 'credit_purchase') {
-                        // Adicionar créditos ao usuário
-                        $result = $user->purchaseCredits($userId, $relatedQuantity, $paymentId);
-                        log_mp_cron_message("Créditos adicionados para user_id: $userId - $relatedQuantity créditos. Resultado: " . ($result['success'] ? 'Sucesso' : 'Falha - ' . $result['message']));
-                    }
-                    
-                    // Marcar como processado
-                    $stmt = $db->prepare("
-                        UPDATE mercadopago_payments 
-                        SET is_processed = TRUE
-                        WHERE preference_id = ?
-                    ");
-                    $stmt->execute([$preferenceId]);
-                    log_mp_cron_message("Pagamento marcado como processado: $preferenceId");
-                }
+                // O processamento (renovação de assinatura, adição de créditos) é feito automaticamente
+                // dentro do método checkPaymentStatus da classe MercadoPagoPayment
             } else {
                 log_mp_cron_message("Falha ao verificar preference_id: $preferenceId. Erro: " . $result['message'], 'ERROR');
             }

@@ -7,7 +7,7 @@ if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'master') {
 }
 
 require_once 'classes/User.php';
-require_once 'classes/MercadoPago.php';
+require_once 'classes/MercadoPagoPayment.php';
 require_once 'classes/CreditTransaction.php';
 
 // Verificar se os parâmetros necessários foram fornecidos
@@ -22,11 +22,11 @@ $credits = isset($_POST['credits']) ? intval($_POST['credits']) : 1;
 $userId = $_SESSION['user_id'];
 
 try {
-    $mercadoPago = new MercadoPago();
+    $mercadoPagoPayment = new MercadoPagoPayment();
     $creditTransaction = new CreditTransaction();
     
     // Verificar status do pagamento
-    $result = $mercadoPago->checkPaymentStatus($paymentId);
+    $result = $mercadoPagoPayment->checkPaymentStatus($paymentId);
     
     if (!$result['success']) {
         header('Content-Type: application/json');
