@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION["usuario"])) {
+if (!isset($_SESSION["usuario"]) && !isset($_SESSION["temp_user_id"])) {
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Acesso negado']);
     exit();
@@ -18,7 +18,7 @@ if (!isset($_POST['payment_id']) || empty($_POST['payment_id'])) {
 
 $paymentId = $_POST['payment_id'];
 $months = isset($_POST['months']) ? intval($_POST['months']) : 1;
-$userId = $_SESSION['user_id'];
+$userId = isset($_SESSION["user_id"]) ? $_SESSION["user_id"] : $_SESSION["temp_user_id"];
 
 try {
     $mercadoPagoPayment = new MercadoPagoPayment();
