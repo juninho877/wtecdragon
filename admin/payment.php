@@ -76,65 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else {
             $errorMessage = $result['message'];
         }
-    } elseif ($_POST['action'] === 'check_payment') {
-        if (isset($_SESSION['payment_id'])) {
-            $result = $mercadoPago->checkPaymentStatus($_SESSION['payment_id']);
-            
-            if ($result['success'] && $result['status'] === 'approved') {
-                // Atualizar data de expiração do usuário
-                $months = $_SESSION['payment_months'] ?? 1;
-                
-                // Se o usuário já estiver expirado, calcular a partir da data atual
-                if ($isExpired || empty($userData['expires_at'])) {
-                    $newExpiryDate = date('Y-m-d', strtotime("+{$months} months"));
-                } else {
-                    // Se não estiver expirado, adicionar meses à data de expiração atual
-                    $newExpiryDate = date('Y-m-d', strtotime($userData['expires_at'] . " +{$months} months"));
-                }
-                
-                $updateData = [
-                    'username' => $userData['username'],
-                    'email' => $userData['email'],
-                    'role' => $userData['role'],
-                    'status' => 'active', // Garantir que o status seja ativo
-                    'expires_at' => $newExpiryDate
-                ];
-                
-                $updateResult = $user->updateUser($userId, $updateData);
-                
-                if ($updateResult['success']) {
-                    // Limpar dados do pagamento
-                    unset($_SESSION['payment_qr_code']);
-                    unset($_SESSION['payment_created_at']);
-                    unset($_SESSION['payment_id']);
-                    unset($_SESSION['payment_months']);
-                    unset($_SESSION['payment_amount']);
-                    
-                    // Definir mensagem de sucesso
-                    $_SESSION['payment_success'] = true;
-                    $_SESSION['payment_message'] = "Pagamento confirmado! Sua assinatura foi renovada até {$newExpiryDate}.";
-                    
-                    // Redirecionar para evitar reenvio do formulário
-                    header('Location: payment.php');
-                    exit;
-                } else {
-                    $errorMessage = "Pagamento aprovado, mas houve um erro ao atualizar sua assinatura: " . $updateResult['message'];
-                }
-            } elseif ($result['success'] && $result['status'] === 'pending') {
-                $infoMessage = "Pagamento pendente. Aguardando confirmação do Mercado Pago.";
-            } elseif ($result['success'] && $result['status'] === 'rejected') {
-                $errorMessage = "Pagamento rejeitado. Por favor, tente novamente com outro método de pagamento.";
-                
-                // Limpar dados do pagamento rejeitado
-                unset($_SESSION['payment_qr_code']);
-                unset($_SESSION['payment_created_at']);
-                unset($_SESSION['payment_id']);
-            } else {
-                $errorMessage = $result['message'] ?? "Erro ao verificar status do pagamento.";
-            }
-        } else {
-            $errorMessage = "Nenhum pagamento em andamento.";
-        }
     } elseif ($_POST['action'] === 'cancel_payment') {
         // Limpar dados do pagamento
         unset($_SESSION['payment_qr_code']);
@@ -201,15 +142,7 @@ include "includes/header.php";
 </div>
 <?php endif; ?>
 
-<?php if (isset($infoMessage)): ?>
-<div class="alert alert-info mb-6">
-    <i class="fas fa-info-circle"></i>
-    <div>
-        <p class="font-medium">Informação</p>
-        <p class="text-sm mt-1"><?php echo $infoMessage; ?></p>
-    </div>
-</div>
-<?php endif; ?>
+<div id="payment-status-message" style="display: none;"></div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Informações da Assinatura -->
@@ -297,13 +230,10 @@ include "includes/header.php";
                             QR Code válido por 30 minutos
                         </p>
                         <div class="qr-code-actions">
-                            <form method="post" action="">
-                                <input type="hidden" name="action" value="check_payment">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-sync-alt"></i>
-                                    Verificar Pagamento
-                                </button>
-                            </form>
+                            <button type="button" id="check-payment-btn" class="btn btn-primary">
+                                <i class="fas fa-sync-alt"></i>
+                                Verificar Pagamento
+                            </button>
                             <form method="post" action="">
                                 <input type="hidden" name="action" value="cancel_payment">
                                 <button type="submit" class="btn btn-secondary">
@@ -964,21 +894,173 @@ document.addEventListener('DOMContentLoaded', function() {
         faqItem.classList.toggle('active');
     };
     
+    // Verificar pagamento via AJAX
+    const checkPaymentBtn = document.getElementById('check-payment-btn');
+    if (checkPaymentBtn) {
+        checkPaymentBtn.addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+            
+            const statusMessageContainer = document.getElementById('payment-status-message');
+            
+            // Fazer requisição AJAX para verificar o pagamento
+            fetch('check_payment_ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'payment_id=<?php echo urlencode($_SESSION['payment_id'] ?? ''); ?>&months=<?php echo intval($_SESSION['payment_months'] ?? 1); ?>'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.status === 'approved') {
+                        // Pagamento aprovado
+                        Swal.fire({
+                            title: 'Pagamento Aprovado!',
+                            text: data.message,
+                            icon: 'success',
+                            confirmButtonText: 'OK',
+                            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                        }).then(() => {
+                            // Redirecionar para atualizar a página
+                            window.location.href = 'payment.php?success=1';
+                        });
+                        
+                        // Armazenar mensagem de sucesso na sessão via AJAX
+                        fetch('store_payment_success.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: `message=${encodeURIComponent(data.message)}`
+                        });
+                        
+                    } else if (data.status === 'pending') {
+                        // Pagamento pendente
+                        statusMessageContainer.style.display = 'block';
+                        statusMessageContainer.innerHTML = `
+                            <div class="alert alert-info mb-6">
+                                <i class="fas fa-info-circle"></i>
+                                <div>
+                                    <p class="font-medium">Pagamento Pendente</p>
+                                    <p class="text-sm mt-1">${data.message}</p>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Reativar botão
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-sync-alt"></i> Verificar Pagamento';
+                        
+                    } else if (data.status === 'rejected' || data.status === 'cancelled') {
+                        // Pagamento rejeitado
+                        Swal.fire({
+                            title: 'Pagamento Rejeitado',
+                            text: data.message,
+                            icon: 'error',
+                            confirmButtonText: 'OK',
+                            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                        }).then(() => {
+                            // Redirecionar para atualizar a página
+                            window.location.href = 'payment.php';
+                        });
+                    } else {
+                        // Outro status
+                        statusMessageContainer.style.display = 'block';
+                        statusMessageContainer.innerHTML = `
+                            <div class="alert alert-warning mb-6">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <div>
+                                    <p class="font-medium">Status: ${data.status}</p>
+                                    <p class="text-sm mt-1">${data.message}</p>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Reativar botão
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-sync-alt"></i> Verificar Pagamento';
+                    }
+                } else {
+                    // Erro na verificação
+                    statusMessageContainer.style.display = 'block';
+                    statusMessageContainer.innerHTML = `
+                        <div class="alert alert-error mb-6">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <div>
+                                <p class="font-medium">Erro na Verificação</p>
+                                <p class="text-sm mt-1">${data.message}</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Reativar botão
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-sync-alt"></i> Verificar Pagamento';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusMessageContainer.style.display = 'block';
+                statusMessageContainer.innerHTML = `
+                    <div class="alert alert-error mb-6">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <div>
+                            <p class="font-medium">Erro na Comunicação</p>
+                            <p class="text-sm mt-1">Ocorreu um erro ao verificar o pagamento. Tente novamente.</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Reativar botão
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-sync-alt"></i> Verificar Pagamento';
+            });
+        });
+    }
+    
     // Auto-refresh para verificar pagamento a cada 30 segundos
     <?php if ($paymentInProgress && !$qrCodeExpired): ?>
     const checkPaymentInterval = setInterval(function() {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.style.display = 'none';
-        
-        const actionInput = document.createElement('input');
-        actionInput.type = 'hidden';
-        actionInput.name = 'action';
-        actionInput.value = 'check_payment';
-        
-        form.appendChild(actionInput);
-        document.body.appendChild(form);
-        form.submit();
+        // Fazer verificação via AJAX em vez de submeter o formulário
+        fetch('check_payment_ajax.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'payment_id=<?php echo urlencode($_SESSION['payment_id'] ?? ''); ?>&months=<?php echo intval($_SESSION['payment_months'] ?? 1); ?>'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.status === 'approved') {
+                    // Pagamento aprovado - redirecionar
+                    clearInterval(checkPaymentInterval);
+                    
+                    // Armazenar mensagem de sucesso na sessão via AJAX
+                    fetch('store_payment_success.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `message=${encodeURIComponent(data.message)}`
+                    }).then(() => {
+                        window.location.href = 'payment.php?success=1';
+                    });
+                } else if (data.status === 'rejected' || data.status === 'cancelled') {
+                    // Pagamento rejeitado - redirecionar
+                    clearInterval(checkPaymentInterval);
+                    window.location.href = 'payment.php';
+                }
+                // Se for pending, não faz nada e continua verificando
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
     }, 30000); // Verificar a cada 30 segundos
     
     // Limpar intervalo quando a página for fechada
@@ -986,12 +1068,6 @@ document.addEventListener('DOMContentLoaded', function() {
         clearInterval(checkPaymentInterval);
     });
     <?php endif; ?>
-    
-    // Limpar sessão de QR code quando a página for fechada
-    window.addEventListener('beforeunload', function() {
-        // Enviar requisição para limpar a sessão
-        navigator.sendBeacon('clear_qr_session.php');
-    });
 });
 </script>
 
