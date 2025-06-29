@@ -8,9 +8,9 @@ if (!isset($_SESSION["usuario"]) && !isset($_SESSION["temp_user_id"])) {
 require_once 'classes/User.php';
 require_once 'classes/MercadoPago.php';
 require_once 'classes/MercadoPagoSettings.php';
+require_once 'config/database.php'; // Ensure database is available for logging
 
-// Debug log to check session state
-error_log("Payment.php session state: " . print_r($_SESSION, true));
+error_log("Payment.php accessed. Session state: " . print_r($_SESSION, true));
 
 // Verificar se há mensagem de sucesso
 $successMessage = '';
@@ -40,6 +40,9 @@ $mercadoPagoSettings = new MercadoPagoSettings();
 // Determinar o ID do usuário (usuário logado ou usuário temporário com conta expirada)
 $userId = isset($_SESSION["user_id"]) ? $_SESSION["user_id"] : (isset($_SESSION["temp_user_id"]) ? $_SESSION["temp_user_id"] : null);
 $userData = $user->getUserById($userId);
+error_log("Payment.php - User ID: " . $userId);
+error_log("Payment.php - User Data: " . print_r($userData, true));
+
 
 // Verificar se a conta está expirada
 $isExpired = false;
@@ -51,6 +54,10 @@ if ($userData['expires_at'] && strtotime($userData['expires_at']) < time()) {
 
 // Buscar configurações do admin (ID 1)
 $adminSettings = $mercadoPagoSettings->getSettings(1);
+error_log("Payment.php - Admin Mercado Pago Settings: " . print_r($adminSettings, true));
+if (!$adminSettings || empty($adminSettings['access_token'])) {
+    error_log("Payment.php - WARNING: Mercado Pago settings or access token missing for admin ID 1.");
+}
 $basePrice = $adminSettings['user_access_value'] ?? 29.90;
 $whatsappNumber = $adminSettings['whatsapp_number'] ?? '5511999999999';
 $discount3Months = $adminSettings['discount_3_months_percent'] ?? 5.00;
@@ -62,10 +69,14 @@ $price1Month = $basePrice;
 $price3Months = ($basePrice * 3) * (1 - ($discount3Months / 100));
 $price6Months = ($basePrice * 6) * (1 - ($discount6Months / 100));
 $price12Months = ($basePrice * 12) * (1 - ($discount12Months / 100));
+error_log("Payment.php - Calculated Prices: 1 Month: {$price1Month}, 3 Months: {$price3Months}, 6 Months: {$price6Months}, 12 Months: {$price12Months}");
 
 // Verificar se há um pagamento em andamento
 $paymentInProgress = isset($_SESSION['payment_qr_code']) && !empty($_SESSION['payment_qr_code']);
 $paymentCreatedAt = isset($_SESSION['payment_created_at']) ? $_SESSION['payment_created_at'] : null;
+error_log("Payment.php - Payment in progress: " . ($paymentInProgress ? 'Yes' : 'No'));
+error_log("Payment.php - Current QR Code in session: " . ($_SESSION['payment_qr_code'] ?? 'N/A'));
+
 
 // Verificar se o QR code expirou (aumentado para 30 minutos)
 $qrCodeExpired = false;
@@ -77,6 +88,7 @@ if ($paymentCreatedAt && (time() - $paymentCreatedAt > 1800)) { // 30 minutos em
     unset($_SESSION['payment_id']);
     $paymentInProgress = false;
 }
+error_log("Payment.php - QR Code Expired: " . ($qrCodeExpired ? 'Yes' : 'No'));
 
 // Processar solicitação de pagamento
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -87,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // Calcular valor total
         $totalAmount = $amount;
         
+        error_log("Payment.php - Attempting to create payment for {$months} months, amount: {$totalAmount}");
         // Criar pagamento
         $result = $mercadoPago->createSubscriptionPayment($userId, $totalAmount, $months);
         
