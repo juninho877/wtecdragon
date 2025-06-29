@@ -52,8 +52,10 @@ if ($mercadoPagoConfigured && isset($_POST['generate_payment'])) {
         $qrCodeBase64 = $result['qr_code_base64'];
         $copyPasteCode = $result['qr_code'];
         
-        // Salvar o ID da preferência na sessão
-        $_SESSION['payment_preference_id'] = $preferenceId;
+        // Store QR data in session for persistence
+        $_SESSION['payment_preference_id_session'] = $preferenceId;
+        $_SESSION['qr_code_base64'] = $qrCodeBase64;
+        $_SESSION['copy_paste_code'] = $copyPasteCode;
     } else {
         $paymentStatus = 'error';
         $paymentMessage = $result['message'];
@@ -64,8 +66,8 @@ if ($mercadoPagoConfigured && isset($_POST['generate_payment'])) {
 $paymentStatus = '';
 $paymentMessage = '';
 
-if (isset($_POST['check_payment']) && isset($_SESSION['payment_preference_id'])) {
-    $preferenceId = $_SESSION['payment_preference_id'];
+if (isset($_POST['check_payment']) && isset($_SESSION['payment_preference_id_session'])) {
+    $preferenceId = $_SESSION['payment_preference_id_session'];
     
     $result = $mercadoPagoPayment->checkPaymentStatus($preferenceId);
     
@@ -78,6 +80,11 @@ if (isset($_POST['check_payment']) && isset($_SESSION['payment_preference_id']))
                 // Atualizar dados do usuário após renovação
                 $currentUserData = $user->getUserById($userId);
                 $accessExpired = false;
+
+        // Clear QR data from session after successful payment
+               unset($_SESSION['payment_preference_id_session']);
+               unset($_SESSION['qr_code_base64']);
+               unset($_SESSION['copy_paste_code']);
                 
                 // Calcular dias restantes
                 $expiryDate = new DateTime($currentUserData['expires_at']);
@@ -770,7 +777,7 @@ function copyToClipboard() {
 }
 
 // Verificar status do pagamento automaticamente a cada 30 segundos
-<?php if (!empty($preferenceId) && empty($paymentStatus)): ?>
++<?php if (!empty($preferenceId) && empty($paymentStatus) && !isset($_SESSION['payment_approved'])): // Only auto-check if QR is displayed and payment not yet approved ?>
 let checkCount = 0;
 const maxChecks = 20; // Máximo de 10 minutos (20 * 30 segundos)
 
