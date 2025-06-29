@@ -6,7 +6,6 @@ if (!isset($_SESSION["usuario"])) {
     exit();
 }
 
-require_once 'classes/User.php';
 require_once 'classes/MercadoPago.php';
 
 // Verificar se os parâmetros necessários foram fornecidos
@@ -21,9 +20,7 @@ $months = isset($_POST['months']) ? intval($_POST['months']) : 1;
 $userId = $_SESSION['user_id'];
 
 try {
-    $user = new User();
     $mercadoPago = new MercadoPago();
-    $userData = $user->getUserById($userId);
     
     // Verificar status do pagamento
     $result = $mercadoPago->checkPaymentStatus($paymentId);
@@ -40,7 +37,8 @@ try {
     $response = [
         'success' => true,
         'status' => $result['status'],
-        'message' => ''
+        'message' => '',
+        'is_processed' => $result['is_processed'] ?? false
     ];
     
     // Processar com base no status
@@ -49,36 +47,11 @@ try {
         if ($result['is_processed']) {
             $response['message'] = "Pagamento já foi processado anteriormente. Sua assinatura já foi renovada.";
         } else {
-            // Se o usuário já estiver expirado, calcular a partir da data atual
-            $isExpired = false;
-            if ($userData['expires_at'] && strtotime($userData['expires_at']) < time()) {
-                $isExpired = true;
-            }
-            
-            if ($isExpired || empty($userData['expires_at'])) {
-                $newExpiryDate = date('Y-m-d', strtotime("+{$months} months"));
-            } else {
-                // Se não estiver expirado, adicionar meses à data de expiração atual
-                $newExpiryDate = date('Y-m-d', strtotime($userData['expires_at'] . " +{$months} months"));
-            }
-            
-            $updateData = [
-                'username' => $userData['username'],
-                'email' => $userData['email'],
-                'role' => $userData['role'],
-                'status' => 'active', // Garantir que o status seja ativo
-                'expires_at' => $newExpiryDate
-            ];
-            
-            $updateResult = $user->updateUser($userId, $updateData);
-            
-            if ($updateResult['success']) {
-                $response['message'] = "Pagamento confirmado! Sua assinatura foi renovada até {$newExpiryDate}.";
-                $response['new_expiry_date'] = $newExpiryDate;
-                $response['should_clear_session'] = true;
-            } else {
-                $response['message'] = "Pagamento aprovado, mas houve um erro ao atualizar sua assinatura: " . $updateResult['message'];
-            }
+            // O processamento real (renovação da assinatura) já foi feito no método checkPaymentStatus
+            // Aqui apenas informamos ao usuário o que aconteceu
+            $newExpiryDate = date('d/m/Y', strtotime("+" . $months . " months"));
+            $response['message'] = "Pagamento confirmado! Sua assinatura foi renovada até {$newExpiryDate}.";
+            $response['should_clear_session'] = true;
         }
     } elseif ($result['status'] === 'pending') {
         $response['message'] = "Pagamento pendente. Aguardando confirmação do Mercado Pago.";

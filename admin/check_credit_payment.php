@@ -21,7 +21,6 @@ $credits = isset($_POST['credits']) ? intval($_POST['credits']) : 1;
 $userId = $_SESSION['user_id'];
 
 try {
-    $user = new User();
     $mercadoPago = new MercadoPago();
     
     // Verificar status do pagamento
@@ -39,7 +38,8 @@ try {
     $response = [
         'success' => true,
         'status' => $result['status'],
-        'message' => ''
+        'message' => '',
+        'is_processed' => $result['is_processed'] ?? false
     ];
     
     // Processar com base no status
@@ -48,24 +48,10 @@ try {
         if ($result['is_processed']) {
             $response['message'] = "Pagamento já foi processado anteriormente. Seus créditos já foram adicionados.";
         } else {
-            // Adicionar créditos ao usuário
-            $addCreditsResult = $user->purchaseCredits($userId, $credits, $paymentId);
-            
-            if ($addCreditsResult['success']) {
-                $response['message'] = "Pagamento confirmado! {$credits} créditos foram adicionados à sua conta.";
-                $response['should_clear_session'] = true;
-                
-                // Marcar o pagamento como processado
-                $db = Database::getInstance()->getConnection();
-                $stmt = $db->prepare("
-                    UPDATE mercadopago_payments 
-                    SET is_processed = TRUE
-                    WHERE payment_id = ?
-                ");
-                $stmt->execute([$paymentId]);
-            } else {
-                $response['message'] = "Pagamento aprovado, mas houve um erro ao adicionar os créditos: " . $addCreditsResult['message'];
-            }
+            // O processamento real (adição de créditos) já foi feito no método checkPaymentStatus
+            // Aqui apenas informamos ao usuário o que aconteceu
+            $response['message'] = "Pagamento confirmado! {$credits} créditos foram adicionados à sua conta.";
+            $response['should_clear_session'] = true;
         }
     } elseif ($result['status'] === 'pending') {
         $response['message'] = "Pagamento pendente. Aguardando confirmação do Mercado Pago.";
