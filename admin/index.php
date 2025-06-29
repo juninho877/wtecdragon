@@ -46,7 +46,7 @@ include "includes/header.php";
             <i class="fas fa-globe text-primary-500 mr-2"></i>
             Estatísticas Globais do Sistema
         </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid-responsivo">
             <div class="card admin-stat-card">
                 <div class="card-body">
                     <div class="flex items-center justify-between">
@@ -135,7 +135,7 @@ include "includes/header.php";
             <i class="fas fa-user text-secondary mr-2"></i>
             Suas Estatísticas Pessoais
         </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="grid-responsivo">
             <div class="card">
                 <div class="card-body">
                     <div class="flex items-center justify-between">
@@ -286,7 +286,7 @@ include "includes/header.php";
     </div>
 <?php endif; ?>
 
-<!-- Quick Actions -->
+    <!-- Quick Actions
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
     <div class="card">
         <div class="card-header">
@@ -343,7 +343,7 @@ include "includes/header.php";
             </div>
         </div>
     </div>
-</div>
+</div> -->
 
 <!-- Jogos de Hoje (se houver) -->
 <?php if ($totalJogosHoje > 0): ?>
@@ -359,7 +359,7 @@ include "includes/header.php";
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <?php 
             // Mostrar apenas os primeiros 8 jogos no dashboard (aumentado de 6 para 8)
-            $jogosLimitados = array_slice($jogos, 0, 8);
+            $jogosLimitados = array_slice($jogos, 0, 6);
             foreach ($jogosLimitados as $jogo): 
                 $time1 = $jogo['time1'] ?? 'Time 1';
                 $time2 = $jogo['time2'] ?? 'Time 2';
@@ -464,6 +464,30 @@ include "includes/header.php";
 </div>
 
 <style>
+	    .grid-responsivo {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+        
+    @media (min-width: 640px) {
+        .grid-responsivo {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+        
+    @media (min-width: 768px) {
+        .grid-responsivo {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+        
+    @media (min-width: 1024px) {
+        .grid-responsivo {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+	
     /* Cores adicionais para info */
     :root {
         --info-50: #eff6ff;
