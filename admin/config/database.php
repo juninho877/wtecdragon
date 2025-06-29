@@ -111,6 +111,17 @@ class Database {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE
         );
+        
+        CREATE TABLE IF NOT EXISTS credit_purchases (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            amount INT NOT NULL,
+            payment_id VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+            INDEX idx_user_id (user_id),
+            INDEX idx_payment_id (payment_id)
+        );
         ";
         
         $this->connection->exec($sql);
@@ -228,6 +239,31 @@ class Database {
                 $this->connection->exec("
                     ALTER TABLE usuarios 
                     MODIFY COLUMN role ENUM('admin', 'master', 'user') DEFAULT 'user'
+                ");
+            }
+            
+            // Verificar se a tabela credit_purchases existe
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as table_exists 
+                FROM information_schema.TABLES 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'credit_purchases'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['table_exists'] == 0) {
+                // Criar tabela credit_purchases
+                $this->connection->exec("
+                    CREATE TABLE IF NOT EXISTS credit_purchases (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        amount INT NOT NULL,
+                        payment_id VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+                        INDEX idx_user_id (user_id),
+                        INDEX idx_payment_id (payment_id)
+                    )
                 ");
             }
             

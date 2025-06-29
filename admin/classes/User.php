@@ -350,22 +350,34 @@ class User {
         try {
             $this->db->beginTransaction();
             
-            // Adicionar créditos
-            $stmt = $this->db->prepare("UPDATE usuarios SET credits = credits + ? WHERE id = ? AND role = 'master'");
-            $stmt->execute([$amount, $userId]);
+            // Verificar se o usuário existe e é um master
+            $stmt = $this->db->prepare("SELECT id, role FROM usuarios WHERE id = ? AND role = 'master'");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
             
-            if ($stmt->rowCount() === 0) {
+            if (!$user) {
                 $this->db->rollBack();
                 return ['success' => false, 'message' => 'Usuário não encontrado ou não é um master'];
             }
             
-            // Registrar a compra de créditos (se necessário, pode-se criar uma tabela para isso)
-            // ...
+            // Adicionar créditos
+            $stmt = $this->db->prepare("UPDATE usuarios SET credits = credits + ? WHERE id = ?");
+            $stmt->execute([$amount, $userId]);
+            
+            // Registrar a compra de créditos (opcional)
+            if ($paymentId) {
+                $stmt = $this->db->prepare("
+                    INSERT INTO credit_purchases (user_id, amount, payment_id, created_at)
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $stmt->execute([$userId, $amount, $paymentId]);
+            }
             
             $this->db->commit();
             return ['success' => true, 'message' => "{$amount} créditos adicionados com sucesso"];
         } catch (PDOException $e) {
             $this->db->rollBack();
+            error_log("Erro ao comprar créditos: " . $e->getMessage());
             return ['success' => false, 'message' => 'Erro ao comprar créditos: ' . $e->getMessage()];
         }
     }
