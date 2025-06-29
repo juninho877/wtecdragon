@@ -122,11 +122,37 @@ class Database {
             INDEX idx_user_id (user_id),
             INDEX idx_payment_id (payment_id)
         );
+        
+        CREATE TABLE IF NOT EXISTS mercadopago_payments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            payment_id VARCHAR(255),
+            preference_id VARCHAR(255) NOT NULL,
+            external_reference VARCHAR(255),
+            status VARCHAR(50) NOT NULL,
+            status_detail VARCHAR(255),
+            payment_method VARCHAR(50),
+            payment_type VARCHAR(50),
+            transaction_amount DECIMAL(10, 2) NOT NULL,
+            payment_purpose VARCHAR(50) DEFAULT 'subscription',
+            related_quantity INT DEFAULT 1,
+            is_processed BOOLEAN DEFAULT FALSE,
+            payment_date TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            
+            FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+            INDEX idx_user_id (user_id),
+            INDEX idx_preference_id (preference_id),
+            INDEX idx_payment_id (payment_id),
+            INDEX idx_status (status),
+            INDEX idx_created_at (created_at)
+        );
         ";
         
         $this->connection->exec($sql);
         
-        // Verificar se as colunas de desconto e WhatsApp existem, se não, adicioná-las
+        // Adicionar colunas necessárias se não existirem
         $this->addColumnsIfNotExist();
         
         // Inserir imagens padrão para usuários existentes
@@ -264,6 +290,41 @@ class Database {
                         INDEX idx_user_id (user_id),
                         INDEX idx_payment_id (payment_id)
                     )
+                ");
+            }
+            
+            // Verificar se as colunas payment_purpose e related_quantity existem na tabela mercadopago_payments
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'mercadopago_payments' AND COLUMN_NAME = 'payment_purpose'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                // Adicionar colunas payment_purpose e related_quantity
+                $this->connection->exec("
+                    ALTER TABLE mercadopago_payments 
+                    ADD COLUMN payment_purpose VARCHAR(50) DEFAULT 'subscription' AFTER transaction_amount,
+                    ADD COLUMN related_quantity INT DEFAULT 1 AFTER payment_purpose
+                ");
+            }
+            
+            // Verificar se a coluna is_processed existe na tabela mercadopago_payments
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'mercadopago_payments' AND COLUMN_NAME = 'is_processed'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                // Adicionar coluna is_processed
+                $this->connection->exec("
+                    ALTER TABLE mercadopago_payments 
+                    ADD COLUMN is_processed BOOLEAN DEFAULT FALSE AFTER related_quantity
                 ");
             }
             

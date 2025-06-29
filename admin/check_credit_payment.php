@@ -44,14 +44,19 @@ try {
     
     // Processar com base no status
     if ($result['status'] === 'approved') {
-        // Adicionar créditos ao usuário
-        $addCreditsResult = $user->purchaseCredits($userId, $credits, $paymentId);
-        
-        if ($addCreditsResult['success']) {
-            $response['message'] = "Pagamento confirmado! {$credits} créditos foram adicionados à sua conta.";
-            $response['should_clear_session'] = true;
+        // Verificar se o pagamento já foi processado
+        if ($result['is_processed']) {
+            $response['message'] = "Pagamento já foi processado anteriormente. Seus créditos já foram adicionados.";
         } else {
-            $response['message'] = "Pagamento aprovado, mas houve um erro ao adicionar os créditos: " . $addCreditsResult['message'];
+            // Adicionar créditos ao usuário
+            $addCreditsResult = $user->purchaseCredits($userId, $credits, $paymentId);
+            
+            if ($addCreditsResult['success']) {
+                $response['message'] = "Pagamento confirmado! {$credits} créditos foram adicionados à sua conta.";
+                $response['should_clear_session'] = true;
+            } else {
+                $response['message'] = "Pagamento aprovado, mas houve um erro ao adicionar os créditos: " . $addCreditsResult['message'];
+            }
         }
     } elseif ($result['status'] === 'pending') {
         $response['message'] = "Pagamento pendente. Aguardando confirmação do Mercado Pago.";

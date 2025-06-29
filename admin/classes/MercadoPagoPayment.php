@@ -32,6 +32,9 @@ class MercadoPagoPayment {
             payment_method VARCHAR(50),
             payment_type VARCHAR(50),
             transaction_amount DECIMAL(10, 2) NOT NULL,
+            payment_purpose VARCHAR(50) DEFAULT 'subscription',
+            related_quantity INT DEFAULT 1,
+            is_processed BOOLEAN DEFAULT FALSE,
             payment_date TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -161,8 +164,8 @@ class MercadoPagoPayment {
             // Registrar o pagamento no banco de dados
             $stmt = $this->db->prepare("
                 INSERT INTO mercadopago_payments 
-                (user_id, payment_id, preference_id, external_reference, status, transaction_amount) 
-                VALUES (?, ?, ?, ?, 'pending', ?)
+                (user_id, payment_id, preference_id, external_reference, status, transaction_amount, payment_purpose, related_quantity) 
+                VALUES (?, ?, ?, ?, 'pending', ?, 'subscription', 1)
             ");
             
             $stmt->execute([
@@ -246,6 +249,15 @@ class MercadoPagoPayment {
             
             $payment = json_decode($response, true);
             
+            // Buscar informações do pagamento no banco de dados
+            $stmt = $this->db->prepare("
+                SELECT payment_purpose, related_quantity, is_processed
+                FROM mercadopago_payments 
+                WHERE preference_id = ?
+            ");
+            $stmt->execute([$preferenceId]);
+            $paymentInfo = $stmt->fetch();
+            
             // Atualizar o status do pagamento no banco de dados
             $stmt = $this->db->prepare("
                 UPDATE mercadopago_payments 
@@ -260,15 +272,15 @@ class MercadoPagoPayment {
             
             $stmt->execute([
                 $payment['status'],
-                $payment['status_detail'],
+                $payment['status_detail'] ?? null,
                 $payment['payment_method_id'] ?? null,
                 $payment['payment_type_id'] ?? null,
                 date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created'])),
                 $preferenceId
             ]);
             
-            // Verificar se o pagamento foi aprovado
-            if ($payment['status'] === 'approved') {
+            // Verificar se o pagamento foi aprovado e ainda não foi processado
+            if ($payment['status'] === 'approved' && $paymentInfo && !$paymentInfo['is_processed']) {
                 // Buscar o usuário associado a este pagamento
                 $stmt = $this->db->prepare("
                     SELECT user_id FROM mercadopago_payments 
@@ -280,19 +292,37 @@ class MercadoPagoPayment {
                 if ($paymentData) {
                     $userId = $paymentData['user_id'];
                     
-                    // Renovar acesso do usuário
-                    $this->renewUserAccess($userId);
+                    // Processar com base no tipo de pagamento
+                    if ($paymentInfo['payment_purpose'] === 'subscription') {
+                        // Renovar acesso do usuário
+                        $this->renewUserAccess($userId, $paymentInfo['related_quantity']);
+                    } elseif ($paymentInfo['payment_purpose'] === 'credit_purchase') {
+                        // Adicionar créditos ao usuário
+                        require_once 'User.php';
+                        $user = new User();
+                        $user->purchaseCredits($userId, $paymentInfo['related_quantity'], $preferenceId);
+                    }
+                    
+                    // Marcar como processado
+                    $stmt = $this->db->prepare("
+                        UPDATE mercadopago_payments 
+                        SET is_processed = TRUE
+                        WHERE preference_id = ?
+                    ");
+                    $stmt->execute([$preferenceId]);
                 }
             }
             
             return [
                 'success' => true,
                 'status' => $payment['status'],
-                'status_detail' => $payment['status_detail'],
-                'payment_id' => $payment['id'],
+                'status_detail' => $payment['status_detail'] ?? null,
                 'payment_method' => $payment['payment_method_id'] ?? null,
                 'payment_type' => $payment['payment_type_id'] ?? null,
-                'date' => $payment['date_approved'] ?? $payment['date_created']
+                'date' => $payment['date_approved'] ?? $payment['date_created'],
+                'payment_purpose' => $paymentInfo['payment_purpose'] ?? 'subscription',
+                'related_quantity' => $paymentInfo['related_quantity'] ?? 1,
+                'is_processed' => $paymentInfo['is_processed'] ?? false
             ];
             
         } catch (Exception $e) {
@@ -310,7 +340,7 @@ class MercadoPagoPayment {
      * @param int $userId ID do usuário
      * @return bool Sucesso da operação
      */
-    public function renewUserAccess($userId) {
+    public function renewUserAccess($userId, $months = 1) {
         try {
             // Buscar dados atuais do usuário
             $stmt = $this->db->prepare("
@@ -333,8 +363,8 @@ class MercadoPagoPayment {
                 }
             }
             
-            // Adicionar 30 dias
-            $newExpiryDate->modify('+30 days');
+            // Adicionar meses
+            $newExpiryDate->modify("+{$months} months");
             
             // Atualizar usuário
             $stmt = $this->db->prepare("
@@ -487,7 +517,7 @@ class MercadoPagoPayment {
             
             // Buscar o pagamento no banco de dados
             $stmt = $this->db->prepare("
-                SELECT user_id FROM mercadopago_payments 
+                SELECT user_id, payment_purpose, related_quantity, is_processed FROM mercadopago_payments 
                 WHERE preference_id = ?
             ");
             $stmt->execute([$payment['preference_id']]);
@@ -498,42 +528,72 @@ class MercadoPagoPayment {
                 if (isset($payment['external_reference'])) {
                     $externalRef = $payment['external_reference'];
                     
-                    // Formato esperado: USER_123_1234567890
+                    // Determinar o tipo de pagamento com base na referência
+                    $paymentPurpose = 'subscription';
+                    $relatedQuantity = 1;
+                    
+                    // Formato esperado: USER_123_1234567890 ou CREDIT_123_1234567890
                     if (preg_match('/^USER_(\d+)_/', $externalRef, $matches)) {
                         $userId = $matches[1];
-                        
-                        // Registrar o pagamento
-                        $stmt = $this->db->prepare("
-                            INSERT INTO mercadopago_payments 
-                            (user_id, payment_id, preference_id, external_reference, status, status_detail, payment_method, payment_type, transaction_amount, payment_date) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ");
-                        
-                        $stmt->execute([
-                            $userId,
-                            $payment['id'],
-                            $payment['preference_id'],
-                            $payment['external_reference'],
-                            $payment['status'],
-                            $payment['status_detail'],
-                            $payment['payment_method_id'] ?? null,
-                            $payment['payment_type_id'] ?? null,
-                            $payment['transaction_amount'],
-                            date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created']))
-                        ]);
-                        
-                        // Se o pagamento foi aprovado, renovar o acesso
-                        if ($payment['status'] === 'approved') {
-                            $this->renewUserAccess($userId);
-                        }
-                        
+                        $paymentPurpose = 'subscription';
+                    } elseif (preg_match('/^CREDIT_(\d+)_/', $externalRef, $matches)) {
+                        $userId = $matches[1];
+                        $paymentPurpose = 'credit_purchase';
+                    } else {
                         return [
-                            'success' => true,
-                            'message' => 'Pagamento registrado com sucesso',
-                            'status' => $payment['status'],
-                            'user_id' => $userId
+                            'success' => false, 
+                            'message' => 'Referência externa inválida'
                         ];
                     }
+                    
+                    // Registrar o pagamento
+                    $stmt = $this->db->prepare("
+                        INSERT INTO mercadopago_payments 
+                        (user_id, payment_id, preference_id, external_reference, status, status_detail, payment_method, payment_type, transaction_amount, payment_purpose, related_quantity, payment_date) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    
+                    $stmt->execute([
+                        $userId,
+                        $payment['id'],
+                        $payment['preference_id'],
+                        $payment['external_reference'],
+                        $payment['status'],
+                        $payment['status_detail'] ?? null,
+                        $payment['payment_method_id'] ?? null,
+                        $payment['payment_type_id'] ?? null,
+                        $payment['transaction_amount'],
+                        $paymentPurpose,
+                        $relatedQuantity,
+                        date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created']))
+                    ]);
+                    
+                    // Se o pagamento foi aprovado, processar
+                    if ($payment['status'] === 'approved') {
+                        if ($paymentPurpose === 'subscription') {
+                            $this->renewUserAccess($userId, $relatedQuantity);
+                        } elseif ($paymentPurpose === 'credit_purchase') {
+                            require_once 'User.php';
+                            $user = new User();
+                            $user->purchaseCredits($userId, $relatedQuantity, $payment['id']);
+                        }
+                        
+                        // Marcar como processado
+                        $stmt = $this->db->prepare("
+                            UPDATE mercadopago_payments 
+                            SET is_processed = TRUE
+                            WHERE payment_id = ?
+                        ");
+                        $stmt->execute([$payment['id']]);
+                    }
+                    
+                    return [
+                        'success' => true,
+                        'message' => 'Pagamento registrado com sucesso',
+                        'status' => $payment['status'],
+                        'user_id' => $userId,
+                        'payment_purpose' => $paymentPurpose
+                    ];
                 }
                 
                 return [
@@ -543,6 +603,9 @@ class MercadoPagoPayment {
             }
             
             $userId = $paymentData['user_id'];
+            $paymentPurpose = $paymentData['payment_purpose'];
+            $relatedQuantity = $paymentData['related_quantity'];
+            $isProcessed = $paymentData['is_processed'];
             
             // Atualizar o status do pagamento
             $stmt = $this->db->prepare("
@@ -560,23 +623,39 @@ class MercadoPagoPayment {
             $stmt->execute([
                 $payment['id'],
                 $payment['status'],
-                $payment['status_detail'],
+                $payment['status_detail'] ?? null,
                 $payment['payment_method_id'] ?? null,
                 $payment['payment_type_id'] ?? null,
                 date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created'])),
                 $payment['preference_id']
             ]);
             
-            // Se o pagamento foi aprovado, renovar o acesso
-            if ($payment['status'] === 'approved') {
-                $this->renewUserAccess($userId);
+            // Se o pagamento foi aprovado e ainda não foi processado, processar
+            if ($payment['status'] === 'approved' && !$isProcessed) {
+                if ($paymentPurpose === 'subscription') {
+                    $this->renewUserAccess($userId, $relatedQuantity);
+                } elseif ($paymentPurpose === 'credit_purchase') {
+                    require_once 'User.php';
+                    $user = new User();
+                    $user->purchaseCredits($userId, $relatedQuantity, $payment['id']);
+                }
+                
+                // Marcar como processado
+                $stmt = $this->db->prepare("
+                    UPDATE mercadopago_payments 
+                    SET is_processed = TRUE
+                    WHERE preference_id = ?
+                ");
+                $stmt->execute([$payment['preference_id']]);
             }
             
             return [
                 'success' => true,
                 'message' => 'Pagamento atualizado com sucesso',
                 'status' => $payment['status'],
-                'user_id' => $userId
+                'user_id' => $userId,
+                'payment_purpose' => $paymentPurpose,
+                'is_processed' => $isProcessed
             ];
             
         } catch (Exception $e) {

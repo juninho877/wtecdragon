@@ -7,7 +7,7 @@
  * e renovar o acesso dos usuários quando o pagamento for aprovado.
  * 
  * Configuração de Cron (exemplo para execução a cada 5 minutos):
- * *\/5 * * * * /usr/bin/php /caminho/completo/para/seu/projeto/admin/check_mp_payments_cron.php >> /caminho/completo/para/seu/projeto/admin/logs/mp_cron.log 2>&1
+ * */5 * * * * /usr/bin/php /caminho/completo/para/seu/projeto/admin/check_mp_payments_cron.php >> /caminho/completo/para/seu/projeto/admin/logs/mp_cron.log 2>&1
  */
 
 // Configurar error reporting e logging
@@ -38,15 +38,17 @@ try {
     // Incluir classes necessárias
     require_once __DIR__ . '/config/database.php';
     require_once __DIR__ . '/classes/MercadoPagoPayment.php';
+    require_once __DIR__ . '/classes/User.php';
 
     $db = Database::getInstance()->getConnection();
     $mercadoPagoPayment = new MercadoPagoPayment();
+    $user = new User();
 
     // Buscar pagamentos pendentes
     // Limitar a pagamentos criados nas últimas 24 horas para evitar reprocessar pagamentos muito antigos
     // e para focar nos que ainda podem ser aprovados.
     $stmt = $db->prepare("
-        SELECT preference_id, user_id
+        SELECT preference_id, payment_id, user_id, payment_purpose, related_quantity, is_processed
         FROM mercadopago_payments
         WHERE status = 'pending' AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
         ORDER BY created_at ASC
@@ -60,13 +62,43 @@ try {
         log_mp_cron_message("Encontrados " . count($pendingPayments) . " pagamentos pendentes para verificar.");
         foreach ($pendingPayments as $payment) {
             $preferenceId = $payment['preference_id'];
+            $paymentId = $payment['payment_id'];
             $userId = $payment['user_id'];
-            log_mp_cron_message("Verificando pagamento para user_id: $userId, preference_id: $preferenceId");
+            $paymentPurpose = $payment['payment_purpose'];
+            $relatedQuantity = $payment['related_quantity'];
+            $isProcessed = $payment['is_processed'];
+            
+            log_mp_cron_message("Verificando pagamento para user_id: $userId, preference_id: $preferenceId, payment_purpose: $paymentPurpose, quantity: $relatedQuantity");
             
             $result = $mercadoPagoPayment->checkPaymentStatus($preferenceId);
             
             if ($result['success']) {
                 log_mp_cron_message("Status atualizado para preference_id: $preferenceId. Novo status: " . $result['status']);
+                
+                // Se o pagamento foi aprovado e ainda não foi processado
+                if ($result['status'] === 'approved' && !$isProcessed) {
+                    log_mp_cron_message("Pagamento aprovado e não processado. Processando agora...");
+                    
+                    // Processar com base no tipo de pagamento
+                    if ($paymentPurpose === 'subscription') {
+                        // Renovar acesso do usuário
+                        $mercadoPagoPayment->renewUserAccess($userId, $relatedQuantity);
+                        log_mp_cron_message("Assinatura renovada para user_id: $userId por $relatedQuantity meses");
+                    } elseif ($paymentPurpose === 'credit_purchase') {
+                        // Adicionar créditos ao usuário
+                        $result = $user->purchaseCredits($userId, $relatedQuantity, $paymentId);
+                        log_mp_cron_message("Créditos adicionados para user_id: $userId - $relatedQuantity créditos. Resultado: " . ($result['success'] ? 'Sucesso' : 'Falha'));
+                    }
+                    
+                    // Marcar como processado
+                    $stmt = $db->prepare("
+                        UPDATE mercadopago_payments 
+                        SET is_processed = TRUE
+                        WHERE preference_id = ?
+                    ");
+                    $stmt->execute([$preferenceId]);
+                    log_mp_cron_message("Pagamento marcado como processado: $preferenceId");
+                }
             } else {
                 log_mp_cron_message("Falha ao verificar preference_id: $preferenceId. Erro: " . $result['message'], 'ERROR');
             }
@@ -78,5 +110,4 @@ try {
 } catch (Exception $e) {
     log_mp_cron_message("ERRO FATAL no cron de pagamentos: " . $e->getMessage(), 'CRITICAL');
 }
-
 ?>
