@@ -18,7 +18,7 @@ $userData = $user->getUserById($userId);
 $userCredits = $user->getUserCredits($userId);
 
 // Buscar configurações do admin (ID 1)
-$adminSettings = $mercadoPagoSettings->getSettings(1);
+$adminSettings = $mercadoPagoSettings->getSettings(1) ?: [];
 $creditPrice = $adminSettings['credit_price'] ?? 1.00;
 $minCreditPurchase = $adminSettings['min_credit_purchase'] ?? 1;
 $whatsappNumber = $adminSettings['whatsapp_number'] ?? '5511999999999';
