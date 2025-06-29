@@ -1,3 +1,4 @@
+<?php ob_start(); ?>
 <?php
 session_start();
 
@@ -368,6 +369,26 @@ if (isset($_SESSION['login_success'])) {
             color: var(--danger-500); /* Cor ajustada para melhor contraste no tema escuro */
         }
 
+        /* Success message */
+        .success-message {
+            background: var(--success-50);
+            color: var(--success-600);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        [data-theme="dark"] .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success-400);
+        }
+
         .welcome-text {
             text-align: center;
             margin-bottom: 1.5rem;
@@ -387,26 +408,6 @@ if (isset($_SESSION['login_success'])) {
         .welcome-text p {
             color: var(--text-secondary);
             font-size: 0.875rem;
-        }
-
-        /* Success message */
-        .success-message {
-            background: var(--success-50);
-            color: var(--success-600);
-            padding: 1rem;
-            border-radius: var(--border-radius);
-            margin-bottom: 1.5rem;
-            font-size: 0.875rem;
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-weight: 500;
-        }
-
-        [data-theme="dark"] .success-message {
-            background: rgba(34, 197, 94, 0.1);
-            color: var(--success-400);
         }
 
         /* Animations */
@@ -644,3 +645,4 @@ if (isset($_SESSION['login_success'])) {
     </script>
 </body>
 </html>
+<?php ob_end_flush(); ?>
