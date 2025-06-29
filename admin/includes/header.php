@@ -626,11 +626,19 @@ if (!isset($_SESSION["usuario"])) {
             .md\\:grid-cols-2 {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+            
+            .md\\:grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
         }
 
         @media (min-width: 1024px) {
             .lg\\:grid-cols-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            
+            .lg\\:grid-cols-4 {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
             }
         }
     </style>
