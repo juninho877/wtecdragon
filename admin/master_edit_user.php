@@ -741,91 +741,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function renewUser(userId, username, months) {
-        // Verificar se o master tem créditos suficientes
-        const masterCredits = <?php echo $masterCredits; ?>;
-        
-        if (masterCredits < months) {
-            Swal.fire({
-                title: 'Créditos Insuficientes',
-                text: `Você precisa de ${months} créditos para esta renovação, mas tem apenas ${masterCredits} disponíveis.`,
-                icon: 'warning',
-                confirmButtonText: 'Comprar Créditos',
-                showCancelButton: true,
-                cancelButtonText: 'Cancelar',
-                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = 'buy_credits.php';
-                }
-            });
-            return;
-        }
-        
+        // Mostrar loading
         Swal.fire({
-            title: 'Confirmar Renovação',
-            text: `Deseja renovar o usuário "${username}" por ${months} ${months > 1 ? 'meses' : 'mês'}? Isso consumirá ${months} ${months > 1 ? 'créditos' : 'crédito'}.`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sim, renovar',
-            cancelButtonText: 'Cancelar',
+            title: 'Processando...',
+            text: 'Aguarde enquanto renovamos o usuário',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            },
             background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
             color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Mostrar loading
+        });
+        
+        // Enviar solicitação para renovar usuário
+        fetch('renew_user_ajax.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `user_id=${userId}&months=${months}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
                 Swal.fire({
-                    title: 'Processando...',
-                    text: 'Aguarde enquanto renovamos o usuário',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    },
+                    title: 'Sucesso!',
+                    text: data.message,
+                    icon: 'success',
+                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    title: 'Erro!',
+                    text: data.message,
+                    icon: 'error',
                     background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
                     color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
                 });
-                
-                // Enviar solicitação para renovar usuário
-                fetch('renew_user_ajax.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `user_id=${userId}&months=${months}`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            title: 'Sucesso!',
-                            text: data.message,
-                            icon: 'success',
-                            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Erro!',
-                            text: data.message,
-                            icon: 'error',
-                            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    Swal.fire({
-                        title: 'Erro!',
-                        text: 'Erro de comunicação com o servidor',
-                        icon: 'error',
-                        background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                        color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-                    });
-                });
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'Erro!',
+                text: 'Erro de comunicação com o servidor',
+                icon: 'error',
+                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+            });
         });
     }
 });
