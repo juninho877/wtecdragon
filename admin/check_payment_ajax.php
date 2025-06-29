@@ -7,6 +7,7 @@ if (!isset($_SESSION["usuario"])) {
 }
 
 require_once 'classes/MercadoPago.php';
+require_once 'classes/CreditTransaction.php';
 
 // Verificar se os parâmetros necessários foram fornecidos
 if (!isset($_POST['payment_id']) || empty($_POST['payment_id'])) {
@@ -21,6 +22,7 @@ $userId = $_SESSION['user_id'];
 
 try {
     $mercadoPago = new MercadoPago();
+    $creditTransaction = new CreditTransaction();
     
     // Verificar status do pagamento
     $result = $mercadoPago->checkPaymentStatus($paymentId);

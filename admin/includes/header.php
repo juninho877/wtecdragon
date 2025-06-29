@@ -623,25 +623,25 @@ if (!isset($_SESSION["usuario"])) {
         }
 
         @media (min-width: 768px) {
-            .md\\:grid-cols-2 {
+            .md\:grid-cols-2 {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
             
-            .md\\:grid-cols-3 {
+            .md\:grid-cols-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
             
-            .md\\:grid-cols-4 {
+            .md\:grid-cols-4 {
                 grid-template-columns: repeat(4, minmax(0, 1fr));
             }
         }
 
         @media (min-width: 1024px) {
-            .lg\\:grid-cols-3 {
+            .lg\:grid-cols-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
             
-            .lg\\:grid-cols-4 {
+            .lg\:grid-cols-4 {
                 grid-template-columns: repeat(4, minmax(0, 1fr));
             }
         }
@@ -725,6 +725,10 @@ if (!isset($_SESSION["usuario"])) {
                         <i class="fas fa-money-check-alt"></i>
                         <span>Gerenciar Pagamentos</span>
                     </a>
+                    <a href="credit_transactions.php" class="nav-item">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>Transações de Créditos</span>
+                    </a>
                 </div>
                 <?php endif; ?>
 
@@ -738,6 +742,10 @@ if (!isset($_SESSION["usuario"])) {
                     <a href="buy_credits.php" class="nav-item">
                         <i class="fas fa-coins"></i>
                         <span>Comprar Créditos</span>
+                    </a>
+                    <a href="payment_history.php" class="nav-item">
+                        <i class="fas fa-history"></i>
+                        <span>Histórico de Pagamentos</span>
                     </a>
                     <a href="mercadopago_master.php" class="nav-item">
                         <i class="fas fa-money-bill-wave"></i>

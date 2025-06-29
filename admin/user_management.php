@@ -6,8 +6,10 @@ if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'admin') {
 }
 
 require_once 'classes/User.php';
+require_once 'classes/CreditTransaction.php';
 
 $user = new User();
+$creditTransaction = new CreditTransaction();
 $users = $user->getAllUsers();
 $stats = $user->getUserStats();
 
@@ -27,7 +29,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             exit;
             
         case 'add_credits':
-            $result = $user->addCredits($_POST['user_id'], $_POST['credits']);
+            $userId = intval($_POST['user_id']);
+            $credits = intval($_POST['credits']);
+            $description = isset($_POST['description']) ? $_POST['description'] : "Adição manual de créditos";
+            
+            $result = $user->addCredits($userId, $credits);
+            
+            if ($result['success']) {
+                // Registrar a transação
+                $creditTransaction->recordTransaction(
+                    1, // Admin ID (assumindo que o admin tem ID 1)
+                    'admin_add',
+                    $credits,
+                    $description,
+                    $userId,
+                    null
+                );
+            }
+            
             echo json_encode($result);
             exit;
     }
@@ -195,6 +214,9 @@ include "includes/header.php";
                                         <button class="btn-action btn-primary add-credits" data-user-id="<?php echo $userData['id']; ?>" title="Adicionar Créditos">
                                             <i class="fas fa-plus-circle"></i>
                                         </button>
+                                        <a href="user_credit_history.php?id=<?php echo $userData['id']; ?>" class="btn-action btn-secondary" title="Ver Histórico">
+                                            <i class="fas fa-history"></i>
+                                        </a>
                                     </div>
                                 <?php else: ?>
                                     <span class="text-muted">-</span>
@@ -479,7 +501,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    addCredits(userId, result.value);
+                    // Pedir descrição
+                    Swal.fire({
+                        title: 'Descrição',
+                        text: 'Informe uma descrição para esta adição de créditos:',
+                        input: 'text',
+                        inputPlaceholder: 'Descrição (opcional)',
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirmar',
+                        cancelButtonText: 'Cancelar',
+                        background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                        color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                    }).then((descResult) => {
+                        if (descResult.isConfirmed) {
+                            addCredits(userId, result.value, descResult.value);
+                        }
+                    });
                 }
             });
         });
@@ -574,13 +611,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function addCredits(userId, credits) {
+    function addCredits(userId, credits, description = '') {
         fetch('user_management.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: `action=add_credits&user_id=${userId}&credits=${credits}`
+            body: `action=add_credits&user_id=${userId}&credits=${credits}&description=${encodeURIComponent(description)}`
         })
         .then(response => response.json())
         .then(data => {

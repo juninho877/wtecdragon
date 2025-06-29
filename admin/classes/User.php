@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once 'CreditTransaction.php';
 
 class User {
     private $db;
@@ -102,6 +103,17 @@ class User {
                 
                 // Deduzir um crédito do master
                 $this->deductCredits($parentUserId, 1);
+                
+                // Registrar a transação
+                $creditTransaction = new CreditTransaction();
+                $creditTransaction->recordTransaction(
+                    $parentUserId,
+                    'user_creation',
+                    -1,
+                    "Criação do usuário {$data['username']}",
+                    null,
+                    null
+                );
             }
             
             $stmt = $this->db->prepare("
@@ -188,6 +200,17 @@ class User {
                         
                         // Deduzir créditos do master
                         $this->deductCredits($currentUser['parent_user_id'], $monthsAdded);
+                        
+                        // Registrar a transação
+                        $creditTransaction = new CreditTransaction();
+                        $creditTransaction->recordTransaction(
+                            $currentUser['parent_user_id'],
+                            'user_renewal',
+                            -$monthsAdded,
+                            "Renovação do usuário ID {$id} por {$monthsAdded} " . ($monthsAdded > 1 ? 'meses' : 'mês'),
+                            $id,
+                            null
+                        );
                     }
                 }
             }
@@ -265,17 +288,33 @@ class User {
     }
     
     // Adicionar créditos a um usuário
-    public function addCredits($userId, $amount) {
+    public function addCredits($userId, $amount, $description = '') {
         try {
             if ($amount <= 0) {
                 return ['success' => false, 'message' => 'A quantidade de créditos deve ser maior que zero'];
             }
             
+            $this->db->beginTransaction();
+            
             $stmt = $this->db->prepare("UPDATE usuarios SET credits = credits + ? WHERE id = ?");
             $stmt->execute([$amount, $userId]);
             
+            // Registrar a transação
+            $creditTransaction = new CreditTransaction();
+            $creditTransaction->recordTransaction(
+                $userId,
+                'admin_add',
+                $amount,
+                $description ?: "Adição manual de {$amount} créditos",
+                null,
+                null
+            );
+            
+            $this->db->commit();
+            
             return ['success' => true, 'message' => "{$amount} créditos adicionados com sucesso"];
         } catch (PDOException $e) {
+            $this->db->rollBack();
             return ['success' => false, 'message' => 'Erro ao adicionar créditos: ' . $e->getMessage()];
         }
     }
@@ -372,6 +411,17 @@ class User {
                 ");
                 $stmt->execute([$userId, $amount, $paymentId]);
             }
+            
+            // Registrar a transação
+            $creditTransaction = new CreditTransaction();
+            $creditTransaction->recordTransaction(
+                $userId,
+                'purchase',
+                $amount,
+                "Compra de {$amount} créditos via Mercado Pago",
+                null,
+                $paymentId
+            );
             
             $this->db->commit();
             return ['success' => true, 'message' => "{$amount} créditos adicionados com sucesso"];

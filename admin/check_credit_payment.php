@@ -8,6 +8,7 @@ if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'master') {
 
 require_once 'classes/User.php';
 require_once 'classes/MercadoPago.php';
+require_once 'classes/CreditTransaction.php';
 
 // Verificar se os parâmetros necessários foram fornecidos
 if (!isset($_POST['payment_id']) || empty($_POST['payment_id'])) {
@@ -22,6 +23,7 @@ $userId = $_SESSION['user_id'];
 
 try {
     $mercadoPago = new MercadoPago();
+    $creditTransaction = new CreditTransaction();
     
     // Verificar status do pagamento
     $result = $mercadoPago->checkPaymentStatus($paymentId);
@@ -52,6 +54,16 @@ try {
             // Aqui apenas informamos ao usuário o que aconteceu
             $response['message'] = "Pagamento confirmado! {$credits} créditos foram adicionados à sua conta.";
             $response['should_clear_session'] = true;
+            
+            // Registrar a transação de crédito
+            $creditTransaction->recordTransaction(
+                $userId,
+                'purchase',
+                $credits,
+                "Compra de {$credits} créditos via Mercado Pago",
+                null,
+                $paymentId
+            );
         }
     } elseif ($result['status'] === 'pending') {
         $response['message'] = "Pagamento pendente. Aguardando confirmação do Mercado Pago.";
