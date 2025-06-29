@@ -238,6 +238,10 @@ include "includes/header.php";
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     
+                                    <button class="btn-action btn-primary renew-user-admin" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>" title="Renovar">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                    
                                     <?php if ($userData['status'] === 'active'): ?>
                                         <button class="btn-action btn-warning toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="inactive" title="Desativar">
                                             <i class="fas fa-user-times"></i>
@@ -322,7 +326,7 @@ include "includes/header.php";
         background: var(--warning-50);
         color: var(--warning-600);
     }
-
+    
     .role-master {
         background: var(--primary-50);
         color: var(--primary-600);
@@ -402,7 +406,7 @@ include "includes/header.php";
         background: rgba(245, 158, 11, 0.1);
         color: var(--warning-400);
     }
-
+    
     [data-theme="dark"] .role-master {
         background: rgba(59, 130, 246, 0.1);
         color: var(--primary-400);
@@ -521,6 +525,59 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    
+    // Renew User (Admin)
+    document.querySelectorAll('.renew-user-admin').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            const username = this.getAttribute('data-username');
+            
+            Swal.fire({
+                title: 'Renovar Usuário',
+                html: `
+                    <p class="mb-4">Escolha por quantos meses deseja renovar o usuário <strong>${username}</strong>:</p>
+                    <div class="renewal-options">
+                        <button type="button" class="renewal-option" data-months="1">1 mês</button>
+                        <button type="button" class="renewal-option" data-months="3">3 meses</button>
+                        <button type="button" class="renewal-option" data-months="6">6 meses</button>
+                        <button type="button" class="renewal-option" data-months="12">12 meses</button>
+                    </div>
+                `,
+                showCancelButton: true,
+                showConfirmButton: false,
+                cancelButtonText: 'Cancelar',
+                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b',
+                didOpen: () => {
+                    // Estilizar opções de renovação
+                    const options = Swal.getPopup().querySelectorAll('.renewal-option');
+                    options.forEach(option => {
+                        option.style.margin = '5px';
+                        option.style.padding = '10px 15px';
+                        option.style.borderRadius = '8px';
+                        option.style.border = '1px solid #e2e8f0';
+                        option.style.background = document.body.getAttribute('data-theme') === 'dark' ? '#334155' : '#f8fafc';
+                        option.style.cursor = 'pointer';
+                        option.style.fontWeight = '500';
+                        
+                        option.addEventListener('mouseover', function() {
+                            this.style.background = document.body.getAttribute('data-theme') === 'dark' ? '#475569' : '#f1f5f9';
+                        });
+                        
+                        option.addEventListener('mouseout', function() {
+                            this.style.background = document.body.getAttribute('data-theme') === 'dark' ? '#334155' : '#f8fafc';
+                        });
+                        
+                        option.addEventListener('click', function() {
+                            const months = parseInt(this.getAttribute('data-months'));
+                            adminRenewUser(userId, username, months);
+                            Swal.close();
+                        });
+                    });
+                }
+            });
+        });
+    });
 
     // Refresh Button
     document.getElementById('refreshBtn').addEventListener('click', function() {
@@ -618,6 +675,61 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: `action=add_credits&user_id=${userId}&credits=${credits}&description=${encodeURIComponent(description)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    title: 'Sucesso!',
+                    text: data.message,
+                    icon: 'success',
+                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    title: 'Erro!',
+                    text: data.message,
+                    icon: 'error',
+                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'Erro!',
+                text: 'Erro de comunicação com o servidor',
+                icon: 'error',
+                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+            });
+        });
+    }
+    
+    function adminRenewUser(userId, username, months) {
+        // Mostrar loading
+        Swal.fire({
+            title: 'Processando...',
+            text: 'Aguarde enquanto renovamos o usuário',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            },
+            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+        });
+        
+        // Enviar solicitação para renovar usuário
+        fetch('admin_renew_user_ajax.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `user_id=${userId}&months=${months}`
         })
         .then(response => response.json())
         .then(data => {
