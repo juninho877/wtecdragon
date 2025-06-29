@@ -7,12 +7,28 @@ if (!isset($_SESSION["usuario"])) {
 
 require_once 'classes/User.php';
 require_once 'classes/MercadoPago.php';
+require_once 'classes/MercadoPagoSettings.php';
 
 $user = new User();
 $mercadoPago = new MercadoPago();
+$mercadoPagoSettings = new MercadoPagoSettings();
 
 $userId = $_SESSION['user_id'];
 $userData = $user->getUserById($userId);
+
+// Buscar configurações do admin (ID 1)
+$adminSettings = $mercadoPagoSettings->getSettings(1);
+$basePrice = $adminSettings['user_access_value'] ?? 29.90;
+$whatsappNumber = $adminSettings['whatsapp_number'] ?? '5511999999999';
+$discount3Months = $adminSettings['discount_3_months_percent'] ?? 5.00;
+$discount6Months = $adminSettings['discount_6_months_percent'] ?? 10.00;
+$discount12Months = $adminSettings['discount_12_months_percent'] ?? 15.00;
+
+// Calcular preços com desconto
+$price1Month = $basePrice;
+$price3Months = ($basePrice * 3) * (1 - ($discount3Months / 100));
+$price6Months = ($basePrice * 6) * (1 - ($discount6Months / 100));
+$price12Months = ($basePrice * 12) * (1 - ($discount12Months / 100));
 
 // Verificar se o usuário está expirado
 $isExpired = false;
@@ -38,11 +54,11 @@ if ($paymentCreatedAt && (time() - $paymentCreatedAt > 1800)) { // 30 minutos em
 // Processar solicitação de pagamento
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'create_payment') {
-        $amount = isset($_POST['amount']) ? floatval($_POST['amount']) : 30.00; // Valor padrão
+        $amount = isset($_POST['amount']) ? floatval($_POST['amount']) : $basePrice; // Valor padrão
         $months = isset($_POST['months']) ? intval($_POST['months']) : 1; // Meses padrão
         
         // Calcular valor total
-        $totalAmount = $amount * $months;
+        $totalAmount = $amount;
         
         // Criar pagamento
         $result = $mercadoPago->createPayment($userId, $totalAmount, $months);
@@ -314,10 +330,18 @@ include "includes/header.php";
                     <div class="form-group">
                         <label for="months" class="form-label">Período de Assinatura</label>
                         <select id="months" name="months" class="form-input form-select">
-                            <option value="1" data-price="30.00">1 mês - R$ 30,00</option>
-                            <option value="3" data-price="85.00">3 meses - R$ 85,00 (5% de desconto)</option>
-                            <option value="6" data-price="162.00">6 meses - R$ 162,00 (10% de desconto)</option>
-                            <option value="12" data-price="300.00">12 meses - R$ 300,00 (15% de desconto)</option>
+                            <option value="1" data-price="<?php echo number_format($price1Month, 2, '.', ''); ?>">
+                                1 mês - R$ <?php echo number_format($price1Month, 2, ',', '.'); ?>
+                            </option>
+                            <option value="3" data-price="<?php echo number_format($price3Months, 2, '.', ''); ?>" data-regular="<?php echo number_format($price1Month * 3, 2, '.', ''); ?>" data-discount="<?php echo number_format($discount3Months, 1); ?>">
+                                3 meses - R$ <?php echo number_format($price3Months, 2, ',', '.'); ?> (<?php echo number_format($discount3Months, 1); ?>% de desconto)
+                            </option>
+                            <option value="6" data-price="<?php echo number_format($price6Months, 2, '.', ''); ?>" data-regular="<?php echo number_format($price1Month * 6, 2, '.', ''); ?>" data-discount="<?php echo number_format($discount6Months, 1); ?>">
+                                6 meses - R$ <?php echo number_format($price6Months, 2, ',', '.'); ?> (<?php echo number_format($discount6Months, 1); ?>% de desconto)
+                            </option>
+                            <option value="12" data-price="<?php echo number_format($price12Months, 2, '.', ''); ?>" data-regular="<?php echo number_format($price1Month * 12, 2, '.', ''); ?>" data-discount="<?php echo number_format($discount12Months, 1); ?>">
+                                12 meses - R$ <?php echo number_format($price12Months, 2, ',', '.'); ?> (<?php echo number_format($discount12Months, 1); ?>% de desconto)
+                            </option>
                         </select>
                     </div>
                     
@@ -337,7 +361,7 @@ include "includes/header.php";
                     <div class="payment-summary">
                         <div class="summary-item">
                             <span>Subtotal:</span>
-                            <span id="subtotal">R$ 30,00</span>
+                            <span id="subtotal">R$ <?php echo number_format($price1Month, 2, ',', '.'); ?></span>
                         </div>
                         <div class="summary-item discount">
                             <span>Desconto:</span>
@@ -345,11 +369,11 @@ include "includes/header.php";
                         </div>
                         <div class="summary-item total">
                             <span>Total:</span>
-                            <span id="total">R$ 30,00</span>
+                            <span id="total">R$ <?php echo number_format($price1Month, 2, ',', '.'); ?></span>
                         </div>
                     </div>
                     
-                    <input type="hidden" name="amount" id="amount" value="30.00">
+                    <input type="hidden" name="amount" id="amount" value="<?php echo number_format($price1Month, 2, '.', ''); ?>">
                     
                     <button type="submit" class="btn btn-primary w-full mt-4">
                         <i class="fas fa-lock"></i>
@@ -455,7 +479,7 @@ include "includes/header.php";
             </div>
             <div class="card-body">
                 <p class="mb-4">Se você tiver dúvidas ou problemas com o pagamento, entre em contato com nosso suporte:</p>
-                <a href="https://wa.me/5511999999999" target="_blank" class="btn btn-success w-full">
+                <a href="https://wa.me/<?php echo $whatsappNumber; ?>" target="_blank" class="btn btn-success w-full">
                     <i class="fab fa-whatsapp"></i>
                     Suporte via WhatsApp
                 </a>
@@ -896,8 +920,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const months = parseInt(this.value);
             
             // Calcular valores
-            let regularPrice = 30.00 * months;
-            let discount = regularPrice - price;
+            let regularPrice = <?php echo $price1Month; ?> * months;
+            let discount = 0;
+            
+            if (months > 1) {
+                const regularPriceAttr = selectedOption.getAttribute('data-regular');
+                if (regularPriceAttr) {
+                    regularPrice = parseFloat(regularPriceAttr);
+                }
+                discount = regularPrice - price;
+            }
             
             // Atualizar elementos
             subtotalElement.textContent = `R$ ${regularPrice.toFixed(2).replace('.', ',')}`;
@@ -905,6 +937,9 @@ document.addEventListener('DOMContentLoaded', function() {
             totalElement.textContent = `R$ ${price.toFixed(2).replace('.', ',')}`;
             amountInput.value = price.toFixed(2);
         });
+        
+        // Trigger change event to initialize values
+        monthsSelect.dispatchEvent(new Event('change'));
     }
     
     // Seleção de método de pagamento

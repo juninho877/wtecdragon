@@ -98,6 +98,10 @@ class Database {
             user_id INT NOT NULL UNIQUE,
             access_token VARCHAR(255) NOT NULL,
             user_access_value DECIMAL(10, 2) NOT NULL,
+            whatsapp_number VARCHAR(20),
+            discount_3_months_percent DECIMAL(5, 2) DEFAULT 5.00,
+            discount_6_months_percent DECIMAL(5, 2) DEFAULT 10.00,
+            discount_12_months_percent DECIMAL(5, 2) DEFAULT 15.00,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE
@@ -106,8 +110,54 @@ class Database {
         
         $this->connection->exec($sql);
         
+        // Verificar se as colunas de desconto e WhatsApp existem, se não, adicioná-las
+        $this->addColumnsIfNotExist();
+        
         // Inserir imagens padrão para usuários existentes
         $this->insertDefaultImages();
+    }
+    
+    // Método para adicionar colunas de desconto e WhatsApp se não existirem
+    private function addColumnsIfNotExist() {
+        try {
+            // Verificar se a coluna whatsapp_number existe
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'mercadopago_settings' AND COLUMN_NAME = 'whatsapp_number'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                // Adicionar coluna whatsapp_number
+                $this->connection->exec("
+                    ALTER TABLE mercadopago_settings 
+                    ADD COLUMN whatsapp_number VARCHAR(20) AFTER user_access_value
+                ");
+            }
+            
+            // Verificar se a coluna discount_3_months_percent existe
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'mercadopago_settings' AND COLUMN_NAME = 'discount_3_months_percent'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                // Adicionar colunas de desconto
+                $this->connection->exec("
+                    ALTER TABLE mercadopago_settings 
+                    ADD COLUMN discount_3_months_percent DECIMAL(5, 2) DEFAULT 5.00 AFTER whatsapp_number,
+                    ADD COLUMN discount_6_months_percent DECIMAL(5, 2) DEFAULT 10.00 AFTER discount_3_months_percent,
+                    ADD COLUMN discount_12_months_percent DECIMAL(5, 2) DEFAULT 15.00 AFTER discount_6_months_percent
+                ");
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao verificar/adicionar colunas: " . $e->getMessage());
+        }
     }
     
     // Método para inserir imagens padrão para usuários existentes

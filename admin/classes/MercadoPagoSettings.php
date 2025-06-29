@@ -18,9 +18,13 @@ class MercadoPagoSettings {
      * @param int $userId ID do usuário
      * @param string $accessToken Token de acesso do Mercado Pago
      * @param float $userAccessValue Valor do acesso do usuário
+     * @param string $whatsappNumber Número do WhatsApp para suporte
+     * @param float $discount3Months Porcentagem de desconto para 3 meses
+     * @param float $discount6Months Porcentagem de desconto para 6 meses
+     * @param float $discount12Months Porcentagem de desconto para 12 meses
      * @return array Resultado da operação
      */
-    public function saveSettings($userId, $accessToken, $userAccessValue) {
+    public function saveSettings($userId, $accessToken, $userAccessValue, $whatsappNumber = null, $discount3Months = 5.00, $discount6Months = 10.00, $discount12Months = 15.00) {
         try {
             // Validar parâmetros
             if (empty($accessToken)) {
@@ -29,6 +33,24 @@ class MercadoPagoSettings {
             
             if (!is_numeric($userAccessValue) || $userAccessValue <= 0) {
                 return ['success' => false, 'message' => 'Valor do acesso deve ser um número positivo'];
+            }
+            
+            // Validar descontos
+            if (!is_numeric($discount3Months) || $discount3Months < 0 || $discount3Months > 100) {
+                return ['success' => false, 'message' => 'Desconto para 3 meses deve ser um número entre 0 e 100'];
+            }
+            
+            if (!is_numeric($discount6Months) || $discount6Months < 0 || $discount6Months > 100) {
+                return ['success' => false, 'message' => 'Desconto para 6 meses deve ser um número entre 0 e 100'];
+            }
+            
+            if (!is_numeric($discount12Months) || $discount12Months < 0 || $discount12Months > 100) {
+                return ['success' => false, 'message' => 'Desconto para 12 meses deve ser um número entre 0 e 100'];
+            }
+            
+            // Validar número de WhatsApp (formato básico)
+            if (!empty($whatsappNumber) && !preg_match('/^\d{10,15}$/', preg_replace('/\D/', '', $whatsappNumber))) {
+                return ['success' => false, 'message' => 'Número de WhatsApp inválido. Use apenas números.'];
             }
             
             // Verificar se o usuário existe
@@ -40,15 +62,35 @@ class MercadoPagoSettings {
             
             // Inserir ou atualizar as configurações
             $stmt = $this->db->prepare("
-                INSERT INTO mercadopago_settings (user_id, access_token, user_access_value) 
-                VALUES (?, ?, ?)
+                INSERT INTO mercadopago_settings (
+                    user_id, 
+                    access_token, 
+                    user_access_value, 
+                    whatsapp_number, 
+                    discount_3_months_percent, 
+                    discount_6_months_percent, 
+                    discount_12_months_percent
+                ) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE 
                 access_token = VALUES(access_token), 
                 user_access_value = VALUES(user_access_value),
+                whatsapp_number = VALUES(whatsapp_number),
+                discount_3_months_percent = VALUES(discount_3_months_percent),
+                discount_6_months_percent = VALUES(discount_6_months_percent),
+                discount_12_months_percent = VALUES(discount_12_months_percent),
                 updated_at = CURRENT_TIMESTAMP
             ");
             
-            $stmt->execute([$userId, $accessToken, $userAccessValue]);
+            $stmt->execute([
+                $userId, 
+                $accessToken, 
+                $userAccessValue,
+                $whatsappNumber,
+                $discount3Months,
+                $discount6Months,
+                $discount12Months
+            ]);
             
             return ['success' => true, 'message' => 'Configurações do Mercado Pago salvas com sucesso'];
         } catch (PDOException $e) {
@@ -69,7 +111,11 @@ class MercadoPagoSettings {
                 SELECT 
                     user_id, 
                     access_token, 
-                    user_access_value, 
+                    user_access_value,
+                    whatsapp_number,
+                    discount_3_months_percent,
+                    discount_6_months_percent,
+                    discount_12_months_percent,
                     created_at, 
                     updated_at 
                 FROM mercadopago_settings 

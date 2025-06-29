@@ -19,11 +19,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'save_settings':
                 $accessToken = trim($_POST['access_token']);
                 $userAccessValue = floatval(str_replace(',', '.', $_POST['user_access_value']));
+                $whatsappNumber = trim($_POST['whatsapp_number']);
+                $discount3Months = floatval(str_replace(',', '.', $_POST['discount_3_months']));
+                $discount6Months = floatval(str_replace(',', '.', $_POST['discount_6_months']));
+                $discount12Months = floatval(str_replace(',', '.', $_POST['discount_12_months']));
                 
                 $result = $mercadoPagoSettings->saveSettings(
                     $userId, 
                     $accessToken, 
-                    $userAccessValue
+                    $userAccessValue,
+                    $whatsappNumber,
+                    $discount3Months,
+                    $discount6Months,
+                    $discount12Months
                 );
                 
                 $message = $result['message'];
@@ -109,7 +117,7 @@ include "includes/header.php";
                     <div class="form-group">
                         <label for="user_access_value" class="form-label required">
                             <i class="fas fa-dollar-sign mr-2"></i>
-                            Valor do Acesso
+                            Valor do Acesso Mensal
                         </label>
                         <div class="input-with-prefix">
                             <span class="input-prefix">R$</span>
@@ -118,8 +126,78 @@ include "includes/header.php";
                                    placeholder="29,90" required>
                         </div>
                         <p class="text-xs text-muted mt-1">
-                            Valor que será cobrado para renovação de acesso dos usuários
+                            Valor base mensal que será cobrado para renovação de acesso dos usuários
                         </p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="whatsapp_number" class="form-label">
+                            <i class="fab fa-whatsapp mr-2"></i>
+                            Número do WhatsApp para Suporte
+                        </label>
+                        <div class="input-with-prefix">
+                            <span class="input-prefix">+</span>
+                            <input type="text" id="whatsapp_number" name="whatsapp_number" class="form-input with-prefix" 
+                                   value="<?php echo htmlspecialchars($currentSettings['whatsapp_number'] ?? ''); ?>" 
+                                   placeholder="5511999999999">
+                        </div>
+                        <p class="text-xs text-muted mt-1">
+                            Número completo com código do país (ex: 5511999999999 para Brasil)
+                        </p>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 my-6 pt-6">
+                        <h4 class="text-lg font-semibold mb-4">
+                            <i class="fas fa-percentage mr-2"></i>
+                            Configuração de Descontos
+                        </h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="form-group">
+                                <label for="discount_3_months" class="form-label">
+                                    Desconto para 3 meses
+                                </label>
+                                <div class="input-with-suffix">
+                                    <input type="text" id="discount_3_months" name="discount_3_months" class="form-input with-suffix" 
+                                           value="<?php echo htmlspecialchars(number_format($currentSettings['discount_3_months_percent'] ?? 5.00, 2, ',', '.')); ?>" 
+                                           placeholder="5,00">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                                <p class="text-xs text-muted mt-1">
+                                    Porcentagem de desconto para plano trimestral
+                                </p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="discount_6_months" class="form-label">
+                                    Desconto para 6 meses
+                                </label>
+                                <div class="input-with-suffix">
+                                    <input type="text" id="discount_6_months" name="discount_6_months" class="form-input with-suffix" 
+                                           value="<?php echo htmlspecialchars(number_format($currentSettings['discount_6_months_percent'] ?? 10.00, 2, ',', '.')); ?>" 
+                                           placeholder="10,00">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                                <p class="text-xs text-muted mt-1">
+                                    Porcentagem de desconto para plano semestral
+                                </p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="discount_12_months" class="form-label">
+                                    Desconto para 12 meses
+                                </label>
+                                <div class="input-with-suffix">
+                                    <input type="text" id="discount_12_months" name="discount_12_months" class="form-input with-suffix" 
+                                           value="<?php echo htmlspecialchars(number_format($currentSettings['discount_12_months_percent'] ?? 15.00, 2, ',', '.')); ?>" 
+                                           placeholder="15,00">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                                <p class="text-xs text-muted mt-1">
+                                    Porcentagem de desconto para plano anual
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-actions">
@@ -222,11 +300,39 @@ include "includes/header.php";
                 </div>
                 
                 <div class="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p class="text-sm font-medium mb-2">Valor do Acesso:</p>
+                    <p class="text-sm font-medium mb-2">Valor do Acesso Mensal:</p>
                     <p class="text-xl font-bold text-success-600">
                         R$ <?php echo number_format($currentSettings['user_access_value'] ?? 0, 2, ',', '.'); ?>
                     </p>
                 </div>
+                
+                <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p class="text-sm font-medium mb-2">Descontos Configurados:</p>
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <div class="text-center">
+                            <span class="text-xs text-muted">3 meses</span>
+                            <p class="font-semibold text-primary-600"><?php echo number_format($currentSettings['discount_3_months_percent'] ?? 5, 1); ?>%</p>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-xs text-muted">6 meses</span>
+                            <p class="font-semibold text-primary-600"><?php echo number_format($currentSettings['discount_6_months_percent'] ?? 10, 1); ?>%</p>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-xs text-muted">12 meses</span>
+                            <p class="font-semibold text-primary-600"><?php echo number_format($currentSettings['discount_12_months_percent'] ?? 15, 1); ?>%</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <?php if (!empty($currentSettings['whatsapp_number'])): ?>
+                <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p class="text-sm font-medium mb-2">Suporte WhatsApp:</p>
+                    <p class="flex items-center gap-2">
+                        <i class="fab fa-whatsapp text-green-500"></i>
+                        <span class="font-medium">+<?php echo htmlspecialchars($currentSettings['whatsapp_number']); ?></span>
+                    </p>
+                </div>
+                <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -283,8 +389,8 @@ include "includes/header.php";
                         <p>Configure um valor justo para o acesso dos usuários</p>
                     </div>
                     <div class="tip-item">
-                        <i class="fas fa-clock text-info-500"></i>
-                        <p>Teste a integração antes de usar em produção</p>
+                        <i class="fas fa-percentage text-info-500"></i>
+                        <p>Ofereça descontos atrativos para planos mais longos</p>
                     </div>
                 </div>
             </div>
@@ -409,7 +515,8 @@ include "includes/header.php";
         color: var(--text-primary);
     }
     
-    .input-with-prefix {
+    .input-with-prefix,
+    .input-with-suffix {
         position: relative;
     }
     
@@ -422,8 +529,21 @@ include "includes/header.php";
         font-weight: 500;
     }
     
+    .input-suffix {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+    
     .form-input.with-prefix {
         padding-left: 2.5rem;
+    }
+    
+    .form-input.with-suffix {
+        padding-right: 2.5rem;
     }
 
     .space-y-3 > * + * {
@@ -458,6 +578,10 @@ include "includes/header.php";
         margin-bottom: 0.5rem;
     }
 
+    .mb-4 {
+        margin-bottom: 1rem;
+    }
+
     .mb-6 {
         margin-bottom: 1.5rem;
     }
@@ -480,6 +604,10 @@ include "includes/header.php";
 
     .rounded-lg {
         border-radius: var(--border-radius);
+    }
+    
+    .text-green-500 {
+        color: #22c55e;
     }
 
     /* Dark theme adjustments */
@@ -510,6 +638,14 @@ include "includes/header.php";
     [data-theme="dark"] .text-success-600 {
         color: var(--success-400);
     }
+    
+    [data-theme="dark"] .text-primary-600 {
+        color: var(--primary-400);
+    }
+    
+    [data-theme="dark"] .text-green-500 {
+        color: #4ade80;
+    }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -520,12 +656,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteBtn = document.getElementById('deleteBtn');
     const accessTokenInput = document.getElementById('access_token');
     const userAccessValueInput = document.getElementById('user_access_value');
+    const discount3MonthsInput = document.getElementById('discount_3_months');
+    const discount6MonthsInput = document.getElementById('discount_6_months');
+    const discount12MonthsInput = document.getElementById('discount_12_months');
 
     // Formatar valor monetário
     userAccessValueInput.addEventListener('input', function(e) {
         let value = e.target.value.replace(/\D/g, '');
         value = (parseInt(value) / 100).toFixed(2);
         e.target.value = value.replace('.', ',');
+    });
+    
+    // Formatar valores de desconto
+    [discount3MonthsInput, discount6MonthsInput, discount12MonthsInput].forEach(input => {
+        input.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.');
+            value = parseFloat(value);
+            if (isNaN(value)) value = 0;
+            if (value > 100) value = 100;
+            e.target.value = value.toFixed(2).replace('.', ',');
+        });
     });
 
     // Testar Conexão
@@ -551,7 +701,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 const userInfo = data.user_info;
-                showAlert('success', `Conexão estabelecida com sucesso! Usuário: ${userInfo.nickname} (${userInfo.email})`);
+                showAlert('success', `Bot conectado: ${userInfo.nickname} (${userInfo.email})`);
             } else {
                 showAlert('error', data.message);
             }
