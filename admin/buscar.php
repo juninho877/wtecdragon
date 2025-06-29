@@ -92,7 +92,7 @@ try {
     </div>
 
     <?php if ($data && isset($data['results']) && !empty($data['results'])): ?>
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+		<div class="grid-responsivo">
             <?php foreach ($data['results'] as $item): 
                 $id = isset($item['id']) ? $item['id'] : 0;
                 $title = isset($item['title']) ? $item['title'] : (isset($item['name']) ? $item['name'] : 'Título não disponível');
@@ -204,6 +204,30 @@ try {
 ?>
 
 <style>
+    .grid-responsivo {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+        
+    @media (min-width: 640px) {
+        .grid-responsivo {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+        
+    @media (min-width: 768px) {
+        .grid-responsivo {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+        
+    @media (min-width: 1024px) {
+        .grid-responsivo {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+	
     .line-clamp-2 {
         display: -webkit-box;
         -webkit-line-clamp: 2;
