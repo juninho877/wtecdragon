@@ -28,37 +28,13 @@ if (!$userData || $userData['parent_user_id'] != $masterId) {
     exit();
 }
 
-// Calcular se a renovação vai consumir créditos
-$willConsumeCredits = false;
-$creditsNeeded = 0;
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Verificar se a data de expiração está sendo estendida
-    if (!empty($_POST['expires_at']) && !empty($userData['expires_at'])) {
-        $currentExpiryDate = new DateTime($userData['expires_at']);
-        $newExpiryDate = new DateTime($_POST['expires_at']);
-        
-        if ($newExpiryDate > $currentExpiryDate) {
-            // Calcular quantos meses foram adicionados (aproximadamente)
-            $diff = $currentExpiryDate->diff($newExpiryDate);
-            $monthsAdded = ($diff->y * 12) + $diff->m;
-            
-            // Se a diferença é de pelo menos 15 dias, considerar como um mês adicional
-            if ($diff->d >= 15) {
-                $monthsAdded++;
-            }
-            
-            $creditsNeeded = max(1, $monthsAdded);
-            $willConsumeCredits = true;
-        }
-    }
-    
     $data = [
         'username' => trim($_POST['username']),
         'email' => trim($_POST['email']),
         'role' => 'user', // Master só pode editar usuários comuns
-        'status' => $_POST['status'],
-        'expires_at' => !empty($_POST['expires_at']) ? $_POST['expires_at'] : null
+        'status' => $_POST['status']
+        // Não permitimos que o master edite a data de expiração diretamente
     ];
     
     // Se uma nova senha foi fornecida
@@ -78,9 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($data['username'])) {
             $message = 'Nome de usuário é obrigatório';
             $messageType = 'error';
-        } elseif ($willConsumeCredits && $masterCredits < $creditsNeeded) {
-            $message = "Você não tem créditos suficientes para esta renovação. Necessário: {$creditsNeeded}, Disponível: {$masterCredits}";
-            $messageType = 'error';
         } else {
             $result = $userClass->updateUser($userId, $data);
             $message = $result['message'];
@@ -89,8 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result['success']) {
                 // Recarregar dados do usuário
                 $userData = $userClass->getUserById($userId);
-                // Recarregar créditos do master
-                $masterCredits = $userClass->getUserCredits($masterId);
             }
         }
     }
@@ -181,34 +152,50 @@ include "includes/header.php";
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="form-group">
-                            <label for="status" class="form-label required">
-                                <i class="fas fa-toggle-on mr-2"></i>
-                                Status
-                            </label>
-                            <select id="status" name="status" class="form-input form-select" required>
-                                <option value="active" <?php echo ($_POST['status'] ?? $userData['status']) === 'active' ? 'selected' : ''; ?>>Ativo</option>
-                                <option value="inactive" <?php echo ($_POST['status'] ?? $userData['status']) === 'inactive' ? 'selected' : ''; ?>>Inativo</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label for="status" class="form-label required">
+                            <i class="fas fa-toggle-on mr-2"></i>
+                            Status
+                        </label>
+                        <select id="status" name="status" class="form-input form-select" required>
+                            <option value="active" <?php echo ($_POST['status'] ?? $userData['status']) === 'active' ? 'selected' : ''; ?>>Ativo</option>
+                            <option value="inactive" <?php echo ($_POST['status'] ?? $userData['status']) === 'inactive' ? 'selected' : ''; ?>>Inativo</option>
+                        </select>
+                    </div>
 
-                        <div class="form-group">
-                            <label for="expires_at" class="form-label">
-                                <i class="fas fa-calendar mr-2"></i>
-                                Data de Expiração
-                            </label>
-                            <input type="date" id="expires_at" name="expires_at" class="form-input" 
-                                   value="<?php echo htmlspecialchars($_POST['expires_at'] ?? $userData['expires_at'] ?? ''); ?>" 
-                                   min="<?php echo date('Y-m-d'); ?>">
-                            <p class="text-xs text-muted mt-1">
-                                <?php if ($willConsumeCredits): ?>
-                                    Estender a data consumirá <?php echo $creditsNeeded; ?> crédito(s)
-                                <?php else: ?>
-                                    Estender a data consumirá créditos
-                                <?php endif; ?>
-                            </p>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-calendar mr-2"></i>
+                            Data de Expiração
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <div class="expiry-display">
+                                <?php 
+                                if ($userData['expires_at']) {
+                                    $expiresAt = new DateTime($userData['expires_at']);
+                                    $now = new DateTime();
+                                    $isExpired = $expiresAt < $now;
+                                    echo '<span class="' . ($isExpired ? 'text-danger-500' : 'text-success-500') . ' font-semibold">';
+                                    echo $expiresAt->format('d/m/Y');
+                                    echo '</span>';
+                                    
+                                    if ($isExpired) {
+                                        echo ' <span class="expiry-badge expired">Expirado</span>';
+                                    } else {
+                                        $daysRemaining = $now->diff($expiresAt)->days;
+                                        echo ' <span class="expiry-badge active">Faltam ' . $daysRemaining . ' dias</span>';
+                                    }
+                                } else {
+                                    echo '<span class="text-muted">Sem data de expiração</span>';
+                                }
+                                ?>
+                            </div>
+                            <button type="button" id="renewBtn" class="btn btn-success btn-sm">
+                                <i class="fas fa-sync-alt"></i>
+                                Renovar
+                            </button>
                         </div>
+                        <p class="text-xs text-muted mt-1">Para estender a data de expiração, use o botão "Renovar"</p>
                     </div>
 
                     <div class="flex gap-4 pt-4">
@@ -303,7 +290,7 @@ include "includes/header.php";
                 </div>
                 
                 <div class="credit-info mt-4">
-                    <p class="text-sm text-muted">Estender a data de expiração consome créditos</p>
+                    <p class="text-sm text-muted">Renovar um usuário consome créditos</p>
                     <p class="text-sm text-muted">Cada mês adicional = 1 crédito</p>
                 </div>
                 
@@ -464,6 +451,36 @@ include "includes/header.php";
         padding: 1rem;
         border-radius: var(--border-radius);
     }
+    
+    .expiry-display {
+        padding: 0.75rem;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius);
+        flex: 1;
+    }
+    
+    .expiry-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .expiry-badge.active {
+        background: var(--success-50);
+        color: var(--success-600);
+    }
+    
+    .expiry-badge.expired {
+        background: var(--danger-50);
+        color: var(--danger-600);
+    }
+    
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+    }
 
     /* Dark theme adjustments */
     [data-theme="dark"] .alert-success {
@@ -501,6 +518,16 @@ include "includes/header.php";
     }
 
     [data-theme="dark"] .status-inactive {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-400);
+    }
+    
+    [data-theme="dark"] .expiry-badge.active {
+        background: rgba(34, 197, 94, 0.1);
+        color: var(--success-400);
+    }
+    
+    [data-theme="dark"] .expiry-badge.expired {
         background: rgba(239, 68, 68, 0.1);
         color: var(--danger-400);
     }
@@ -590,6 +617,61 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    
+    // Renew User
+    const renewBtn = document.getElementById('renewBtn');
+    if (renewBtn) {
+        renewBtn.addEventListener('click', function() {
+            const userId = <?php echo $userId; ?>;
+            const username = "<?php echo htmlspecialchars($userData['username']); ?>";
+            
+            Swal.fire({
+                title: 'Renovar Usuário',
+                html: `
+                    <p class="mb-4">Escolha por quantos meses deseja renovar o usuário <strong>${username}</strong>:</p>
+                    <div class="renewal-options">
+                        <button type="button" class="renewal-option" data-months="1">1 mês</button>
+                        <button type="button" class="renewal-option" data-months="3">3 meses</button>
+                        <button type="button" class="renewal-option" data-months="6">6 meses</button>
+                        <button type="button" class="renewal-option" data-months="12">12 meses</button>
+                    </div>
+                    <p class="mt-4 text-sm">Créditos disponíveis: <strong>${<?php echo $masterCredits; ?>}</strong></p>
+                `,
+                showCancelButton: true,
+                showConfirmButton: false,
+                cancelButtonText: 'Cancelar',
+                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b',
+                didOpen: () => {
+                    // Estilizar opções de renovação
+                    const options = Swal.getPopup().querySelectorAll('.renewal-option');
+                    options.forEach(option => {
+                        option.style.margin = '5px';
+                        option.style.padding = '10px 15px';
+                        option.style.borderRadius = '8px';
+                        option.style.border = '1px solid #e2e8f0';
+                        option.style.background = document.body.getAttribute('data-theme') === 'dark' ? '#334155' : '#f8fafc';
+                        option.style.cursor = 'pointer';
+                        option.style.fontWeight = '500';
+                        
+                        option.addEventListener('mouseover', function() {
+                            this.style.background = document.body.getAttribute('data-theme') === 'dark' ? '#475569' : '#f1f5f9';
+                        });
+                        
+                        option.addEventListener('mouseout', function() {
+                            this.style.background = document.body.getAttribute('data-theme') === 'dark' ? '#334155' : '#f8fafc';
+                        });
+                        
+                        option.addEventListener('click', function() {
+                            const months = parseInt(this.getAttribute('data-months'));
+                            renewUser(userId, username, months);
+                            Swal.close();
+                        });
+                    });
+                }
+            });
+        });
+    }
 
     function changeUserStatus(userId, status) {
         fetch('master_users.php', {
@@ -650,6 +732,95 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon: 'error',
                     background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
                     color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                });
+            }
+        });
+    }
+    
+    function renewUser(userId, username, months) {
+        // Verificar se o master tem créditos suficientes
+        const masterCredits = <?php echo $masterCredits; ?>;
+        
+        if (masterCredits < months) {
+            Swal.fire({
+                title: 'Créditos Insuficientes',
+                text: `Você precisa de ${months} créditos para esta renovação, mas tem apenas ${masterCredits} disponíveis.`,
+                icon: 'warning',
+                confirmButtonText: 'Comprar Créditos',
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar',
+                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = 'buy_credits.php';
+                }
+            });
+            return;
+        }
+        
+        Swal.fire({
+            title: 'Confirmar Renovação',
+            text: `Deseja renovar o usuário "${username}" por ${months} ${months > 1 ? 'meses' : 'mês'}? Isso consumirá ${months} ${months > 1 ? 'créditos' : 'crédito'}.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, renovar',
+            cancelButtonText: 'Cancelar',
+            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Mostrar loading
+                Swal.fire({
+                    title: 'Processando...',
+                    text: 'Aguarde enquanto renovamos o usuário',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    },
+                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                });
+                
+                // Enviar solicitação para renovar usuário
+                fetch('renew_user_ajax.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `user_id=${userId}&months=${months}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Sucesso!',
+                            text: data.message,
+                            icon: 'success',
+                            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Erro!',
+                            text: data.message,
+                            icon: 'error',
+                            background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                            color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire({
+                        title: 'Erro!',
+                        text: 'Erro de comunicação com o servidor',
+                        icon: 'error',
+                        background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                        color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+                    });
                 });
             }
         });

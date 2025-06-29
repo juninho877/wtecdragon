@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'password' => trim($_POST['password']),
         'role' => 'user', // Master só pode criar usuários comuns
         'status' => $_POST['status'],
-        'expires_at' => !empty($_POST['expires_at']) ? $_POST['expires_at'] : null,
+        'expires_at' => date('Y-m-d', strtotime('+30 days')), // Sempre 30 dias a partir de hoje
         'parent_user_id' => $masterId // Definir o master como pai do usuário
     ];
     
@@ -140,28 +140,23 @@ include "includes/header.php";
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="form-group">
-                            <label for="status" class="form-label required">
-                                <i class="fas fa-toggle-on mr-2"></i>
-                                Status
-                            </label>
-                            <select id="status" name="status" class="form-input form-select" required <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
-                                <option value="active" <?php echo ($_POST['status'] ?? 'active') === 'active' ? 'selected' : ''; ?>>Ativo</option>
-                                <option value="inactive" <?php echo ($_POST['status'] ?? '') === 'inactive' ? 'selected' : ''; ?>>Inativo</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label for="status" class="form-label required">
+                            <i class="fas fa-toggle-on mr-2"></i>
+                            Status
+                        </label>
+                        <select id="status" name="status" class="form-input form-select" required <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
+                            <option value="active" <?php echo ($_POST['status'] ?? 'active') === 'active' ? 'selected' : ''; ?>>Ativo</option>
+                            <option value="inactive" <?php echo ($_POST['status'] ?? '') === 'inactive' ? 'selected' : ''; ?>>Inativo</option>
+                        </select>
+                    </div>
 
-                        <div class="form-group">
-                            <label for="expires_at" class="form-label">
-                                <i class="fas fa-calendar mr-2"></i>
-                                Data de Expiração
-                            </label>
-                            <input type="date" id="expires_at" name="expires_at" class="form-input" 
-                                   value="<?php echo htmlspecialchars($_POST['expires_at'] ?? date('Y-m-d', strtotime('+30 days'))); ?>" 
-                                   min="<?php echo date('Y-m-d'); ?>" <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
-                            <p class="text-xs text-muted mt-1">Padrão: 30 dias a partir de hoje (consome 1 crédito)</p>
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-calendar mr-2"></i>
+                            Data de Expiração
+                        </label>
+                        <p class="text-sm text-muted">O usuário será criado com validade de 30 dias (consome 1 crédito)</p>
                     </div>
 
                     <div class="flex gap-4 pt-4">
