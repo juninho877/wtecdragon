@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'admin') {
+if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'master') {
     header("Location: login.php");
     exit();
 }
@@ -8,8 +8,9 @@ if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'admin') {
 require_once 'classes/User.php';
 
 $user = new User();
-$users = $user->getAllUsers();
-$stats = $user->getUserStats();
+$masterId = $_SESSION['user_id'];
+$users = $user->getUsersByParentId($masterId);
+$masterCredits = $user->getUserCredits($masterId);
 
 // Processar ações AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -25,11 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $result = $user->deleteUser($_POST['user_id']);
             echo json_encode($result);
             exit;
-            
-        case 'add_credits':
-            $result = $user->addCredits($_POST['user_id'], $_POST['credits']);
-            echo json_encode($result);
-            exit;
     }
 }
 
@@ -42,17 +38,17 @@ include "includes/header.php";
         <i class="fas fa-users text-primary-500 mr-3"></i>
         Gerenciamento de Usuários
     </h1>
-    <p class="page-subtitle">Controle completo dos usuários do sistema</p>
+    <p class="page-subtitle">Gerencie os usuários que você criou</p>
 </div>
 
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
     <div class="card">
         <div class="card-body">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-muted">Total de Usuários</p>
-                    <p class="text-2xl font-bold text-primary"><?php echo $stats['total']; ?></p>
+                    <p class="text-2xl font-bold text-primary"><?php echo count($users); ?></p>
                 </div>
                 <div class="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center">
                     <i class="fas fa-users text-primary-500"></i>
@@ -65,11 +61,11 @@ include "includes/header.php";
         <div class="card-body">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-muted">Usuários Ativos</p>
-                    <p class="text-2xl font-bold text-success-500"><?php echo $stats['active']; ?></p>
+                    <p class="text-sm font-medium text-muted">Créditos Disponíveis</p>
+                    <p class="text-2xl font-bold text-success-500"><?php echo $masterCredits; ?></p>
                 </div>
                 <div class="w-12 h-12 bg-success-50 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-user-check text-success-500"></i>
+                    <i class="fas fa-coins text-success-500"></i>
                 </div>
             </div>
         </div>
@@ -79,25 +75,18 @@ include "includes/header.php";
         <div class="card-body">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-muted">Usuários Inativos</p>
-                    <p class="text-2xl font-bold text-danger-500"><?php echo $stats['inactive']; ?></p>
+                    <p class="text-sm font-medium text-muted">Usuários Ativos</p>
+                    <p class="text-2xl font-bold text-info-500">
+                        <?php 
+                        $activeUsers = array_filter($users, function($user) {
+                            return $user['status'] === 'active' && (!$user['expires_at'] || $user['expires_at'] >= date('Y-m-d'));
+                        });
+                        echo count($activeUsers);
+                        ?>
+                    </p>
                 </div>
-                <div class="w-12 h-12 bg-danger-50 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-user-times text-danger-500"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-body">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-muted">Masters</p>
-                    <p class="text-2xl font-bold text-warning-500"><?php echo $stats['masters']; ?></p>
-                </div>
-                <div class="w-12 h-12 bg-warning-50 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-user-shield text-warning-500"></i>
+                <div class="w-12 h-12 bg-info-50 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-user-check text-info-500"></i>
                 </div>
             </div>
         </div>
@@ -112,17 +101,41 @@ include "includes/header.php";
             Atualizar
         </button>
     </div>
-    <a href="add_user.php" class="btn btn-primary">
+    <a href="master_add_user.php" class="btn btn-primary">
         <i class="fas fa-plus"></i>
         Adicionar Usuário
     </a>
+</div>
+
+<!-- Credit Info -->
+<div class="card mb-6">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-coins text-warning-500 mr-2"></i>
+            Informações de Créditos
+        </h3>
+    </div>
+    <div class="card-body">
+        <div class="flex flex-col md:flex-row md:items-center gap-4">
+            <div class="credit-info">
+                <p class="text-lg font-semibold">Você tem <span class="text-success-500"><?php echo $masterCredits; ?></span> créditos disponíveis</p>
+                <p class="text-sm text-muted">Cada crédito permite criar ou renovar um usuário por 1 mês</p>
+            </div>
+            <div class="ml-auto">
+                <a href="buy_credits.php" class="btn btn-success">
+                    <i class="fas fa-shopping-cart"></i>
+                    Comprar Mais Créditos
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Users Table -->
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Lista de Usuários</h3>
-        <p class="card-subtitle">Gerencie todos os usuários do sistema</p>
+        <p class="card-subtitle">Gerencie todos os usuários que você criou</p>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -132,109 +145,83 @@ include "includes/header.php";
                         <th>ID</th>
                         <th>Usuário</th>
                         <th>Email</th>
-                        <th>Função</th>
                         <th>Status</th>
                         <th>Expira em</th>
-                        <th>Créditos</th>
                         <th>Último Login</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($users as $userData): ?>
-                        <tr data-user-id="<?php echo $userData['id']; ?>">
-                            <td><?php echo $userData['id']; ?></td>
-                            <td>
-                                <div class="user-info">
-                                    <div class="user-avatar-small">
-                                        <?php echo strtoupper(substr($userData['username'], 0, 2)); ?>
+                    <?php if (empty($users)): ?>
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">Nenhum usuário encontrado</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($users as $userData): ?>
+                            <tr data-user-id="<?php echo $userData['id']; ?>">
+                                <td><?php echo $userData['id']; ?></td>
+                                <td>
+                                    <div class="user-info">
+                                        <div class="user-avatar-small">
+                                            <?php echo strtoupper(substr($userData['username'], 0, 2)); ?>
+                                        </div>
+                                        <span class="font-medium"><?php echo htmlspecialchars($userData['username']); ?></span>
                                     </div>
-                                    <span class="font-medium"><?php echo htmlspecialchars($userData['username']); ?></span>
-                                </div>
-                            </td>
-                            <td><?php echo htmlspecialchars($userData['email'] ?? '-'); ?></td>
-                            <td>
-                                <span class="role-badge role-<?php echo $userData['role']; ?>">
+                                </td>
+                                <td><?php echo htmlspecialchars($userData['email'] ?? '-'); ?></td>
+                                <td>
+                                    <span class="status-badge status-<?php echo $userData['status']; ?>">
+                                        <?php echo $userData['status'] === 'active' ? 'Ativo' : 'Inativo'; ?>
+                                    </span>
+                                </td>
+                                <td>
                                     <?php 
-                                    switch ($userData['role']) {
-                                        case 'admin':
-                                            echo 'Administrador';
-                                            break;
-                                        case 'master':
-                                            echo 'Master';
-                                            break;
-                                        default:
-                                            echo 'Usuário';
+                                    if ($userData['expires_at']) {
+                                        $expiresAt = new DateTime($userData['expires_at']);
+                                        $now = new DateTime();
+                                        $isExpired = $expiresAt < $now;
+                                        echo '<span class="' . ($isExpired ? 'text-danger-500' : 'text-muted') . '">';
+                                        echo $expiresAt->format('d/m/Y');
+                                        echo '</span>';
+                                    } else {
+                                        echo '<span class="text-muted">Nunca</span>';
                                     }
                                     ?>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="status-badge status-<?php echo $userData['status']; ?>">
-                                    <?php echo $userData['status'] === 'active' ? 'Ativo' : 'Inativo'; ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php 
-                                if ($userData['expires_at']) {
-                                    $expiresAt = new DateTime($userData['expires_at']);
-                                    $now = new DateTime();
-                                    $isExpired = $expiresAt < $now;
-                                    echo '<span class="' . ($isExpired ? 'text-danger-500' : 'text-muted') . '">';
-                                    echo $expiresAt->format('d/m/Y');
-                                    echo '</span>';
-                                } else {
-                                    echo '<span class="text-muted">Nunca</span>';
-                                }
-                                ?>
-                            </td>
-                            <td>
-                                <?php if ($userData['role'] === 'master'): ?>
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-medium"><?php echo $userData['credits']; ?></span>
-                                        <button class="btn-action btn-primary add-credits" data-user-id="<?php echo $userData['id']; ?>" title="Adicionar Créditos">
-                                            <i class="fas fa-plus-circle"></i>
-                                        </button>
-                                    </div>
-                                <?php else: ?>
-                                    <span class="text-muted">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php 
-                                if ($userData['last_login']) {
-                                    $lastLogin = new DateTime($userData['last_login']);
-                                    echo $lastLogin->format('d/m/Y H:i');
-                                } else {
-                                    echo '<span class="text-muted">Nunca</span>';
-                                }
-                                ?>
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="edit_user.php?id=<?php echo $userData['id']; ?>" class="btn-action btn-edit" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    
-                                    <?php if ($userData['status'] === 'active'): ?>
-                                        <button class="btn-action btn-warning toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="inactive" title="Desativar">
-                                            <i class="fas fa-user-times"></i>
-                                        </button>
-                                    <?php else: ?>
-                                        <button class="btn-action btn-success toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="active" title="Ativar">
-                                            <i class="fas fa-user-check"></i>
-                                        </button>
-                                    <?php endif; ?>
-                                    
-                                    <?php if ($userData['id'] != $_SESSION['user_id']): ?>
+                                </td>
+                                <td>
+                                    <?php 
+                                    if ($userData['last_login']) {
+                                        $lastLogin = new DateTime($userData['last_login']);
+                                        echo $lastLogin->format('d/m/Y H:i');
+                                    } else {
+                                        echo '<span class="text-muted">Nunca</span>';
+                                    }
+                                    ?>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <a href="master_edit_user.php?id=<?php echo $userData['id']; ?>" class="btn-action btn-edit" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        
+                                        <?php if ($userData['status'] === 'active'): ?>
+                                            <button class="btn-action btn-warning toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="inactive" title="Desativar">
+                                                <i class="fas fa-user-times"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="btn-action btn-success toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="active" title="Ativar">
+                                                <i class="fas fa-user-check"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                        
                                         <button class="btn-action btn-danger delete-user" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>" title="Excluir">
                                             <i class="fas fa-trash"></i>
                                         </button>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -288,27 +275,11 @@ include "includes/header.php";
         font-size: 0.75rem;
     }
 
-    .role-badge,
     .status-badge {
         padding: 0.25rem 0.75rem;
         border-radius: 9999px;
         font-size: 0.75rem;
         font-weight: 500;
-    }
-
-    .role-admin {
-        background: var(--warning-50);
-        color: var(--warning-600);
-    }
-
-    .role-master {
-        background: var(--primary-50);
-        color: var(--primary-600);
-    }
-
-    .role-user {
-        background: var(--success-50);
-        color: var(--success-600);
     }
 
     .status-active {
@@ -375,22 +346,21 @@ include "includes/header.php";
         background: var(--danger-100);
     }
 
+    .credit-info {
+        padding: 1rem;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius);
+    }
+
+    .text-info-500 {
+        color: var(--info-500);
+    }
+
+    .bg-info-50 {
+        background-color: var(--info-50);
+    }
+
     /* Dark theme adjustments */
-    [data-theme="dark"] .role-admin {
-        background: rgba(245, 158, 11, 0.1);
-        color: var(--warning-400);
-    }
-
-    [data-theme="dark"] .role-master {
-        background: rgba(59, 130, 246, 0.1);
-        color: var(--primary-400);
-    }
-
-    [data-theme="dark"] .role-user {
-        background: rgba(34, 197, 94, 0.1);
-        color: var(--success-400);
-    }
-
     [data-theme="dark"] .status-active {
         background: rgba(34, 197, 94, 0.1);
         color: var(--success-400);
@@ -452,38 +422,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
-    
-    // Add Credits
-    document.querySelectorAll('.add-credits').forEach(button => {
-        button.addEventListener('click', function() {
-            const userId = this.getAttribute('data-user-id');
-            
-            Swal.fire({
-                title: 'Adicionar Créditos',
-                text: 'Quantos créditos deseja adicionar?',
-                input: 'number',
-                inputAttributes: {
-                    min: 1,
-                    step: 1
-                },
-                inputValue: 1,
-                showCancelButton: true,
-                confirmButtonText: 'Adicionar',
-                cancelButtonText: 'Cancelar',
-                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b',
-                inputValidator: (value) => {
-                    if (!value || value < 1) {
-                        return 'Você precisa adicionar pelo menos 1 crédito!';
-                    }
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    addCredits(userId, result.value);
-                }
-            });
-        });
-    });
 
     // Refresh Button
     document.getElementById('refreshBtn').addEventListener('click', function() {
@@ -491,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function changeUserStatus(userId, status) {
-        fetch('user_management.php', {
+        fetch('master_users.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -533,54 +471,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function deleteUser(userId) {
-        fetch('user_management.php', {
+        fetch('master_users.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: `action=delete_user&user_id=${userId}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                Swal.fire({
-                    title: 'Sucesso!',
-                    text: data.message,
-                    icon: 'success',
-                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-                }).then(() => {
-                    location.reload();
-                });
-            } else {
-                Swal.fire({
-                    title: 'Erro!',
-                    text: data.message,
-                    icon: 'error',
-                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire({
-                title: 'Erro!',
-                text: 'Erro de comunicação com o servidor',
-                icon: 'error',
-                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-            });
-        });
-    }
-    
-    function addCredits(userId, credits) {
-        fetch('user_management.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `action=add_credits&user_id=${userId}&credits=${credits}`
         })
         .then(response => response.json())
         .then(data => {

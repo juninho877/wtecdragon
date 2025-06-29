@@ -45,7 +45,7 @@ class User {
     // Listar todos os usuários
     public function getAllUsers() {
         $stmt = $this->db->prepare("
-            SELECT id, username, email, role, status, expires_at, created_at, last_login 
+            SELECT id, username, email, role, status, expires_at, credits, parent_user_id, created_at, last_login 
             FROM usuarios 
             ORDER BY created_at DESC
         ");
@@ -56,7 +56,7 @@ class User {
     // Buscar usuário por ID
     public function getUserById($id) {
         $stmt = $this->db->prepare("
-            SELECT id, username, email, role, status, expires_at, created_at, last_login 
+            SELECT id, username, email, role, status, expires_at, credits, parent_user_id, created_at, last_login 
             FROM usuarios 
             WHERE id = ?
         ");
@@ -83,9 +83,30 @@ class User {
                 }
             }
             
+            // Se for um usuário criado por um master, verificar se o master tem créditos suficientes
+            $parentUserId = $data['parent_user_id'] ?? null;
+            if ($parentUserId && $data['role'] === 'user') {
+                // Verificar se o parent_user_id existe e é um master
+                $stmt = $this->db->prepare("SELECT id, role, credits FROM usuarios WHERE id = ? AND role = 'master'");
+                $stmt->execute([$parentUserId]);
+                $masterUser = $stmt->fetch();
+                
+                if (!$masterUser) {
+                    return ['success' => false, 'message' => 'Usuário master não encontrado ou não tem permissão'];
+                }
+                
+                // Verificar se o master tem créditos suficientes
+                if ($masterUser['credits'] < 1) {
+                    return ['success' => false, 'message' => 'O usuário master não tem créditos suficientes'];
+                }
+                
+                // Deduzir um crédito do master
+                $this->deductCredits($parentUserId, 1);
+            }
+            
             $stmt = $this->db->prepare("
-                INSERT INTO usuarios (username, password, email, role, status, expires_at) 
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO usuarios (username, password, email, role, status, expires_at, parent_user_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
@@ -97,7 +118,8 @@ class User {
                 $data['email'] ?? null,
                 $data['role'] ?? 'user',
                 $data['status'] ?? 'active',
-                $expiresAt
+                $expiresAt,
+                $parentUserId
             ]);
             
             return ['success' => true, 'message' => 'Usuário criado com sucesso'];
@@ -122,6 +144,51 @@ class User {
                 $stmt->execute([$data['email'], $id]);
                 if ($stmt->fetch()) {
                     return ['success' => false, 'message' => 'Email já está em uso'];
+                }
+            }
+            
+            // Buscar dados atuais do usuário para verificar se a data de expiração está sendo estendida
+            $stmt = $this->db->prepare("SELECT expires_at, parent_user_id FROM usuarios WHERE id = ?");
+            $stmt->execute([$id]);
+            $currentUser = $stmt->fetch();
+            
+            // Verificar se a data de expiração está sendo estendida e se o usuário tem um parent_user_id
+            if ($currentUser && $currentUser['parent_user_id'] && !empty($data['expires_at'])) {
+                $currentExpiryDate = $currentUser['expires_at'] ? new DateTime($currentUser['expires_at']) : null;
+                $newExpiryDate = new DateTime($data['expires_at']);
+                
+                // Se a data atual é nula ou a nova data é posterior à atual
+                if (!$currentExpiryDate || $newExpiryDate > $currentExpiryDate) {
+                    // Calcular quantos meses foram adicionados (aproximadamente)
+                    $monthsAdded = 0;
+                    
+                    if ($currentExpiryDate) {
+                        $diff = $currentExpiryDate->diff($newExpiryDate);
+                        $monthsAdded = ($diff->y * 12) + $diff->m;
+                        
+                        // Se a diferença é de pelo menos 15 dias, considerar como um mês adicional
+                        if ($diff->d >= 15) {
+                            $monthsAdded++;
+                        }
+                    } else {
+                        // Se não tinha data de expiração, considerar como 1 mês
+                        $monthsAdded = 1;
+                    }
+                    
+                    // Se foram adicionados meses, deduzir créditos do master
+                    if ($monthsAdded > 0) {
+                        // Verificar se o master tem créditos suficientes
+                        $stmt = $this->db->prepare("SELECT credits FROM usuarios WHERE id = ?");
+                        $stmt->execute([$currentUser['parent_user_id']]);
+                        $masterUser = $stmt->fetch();
+                        
+                        if ($masterUser && $masterUser['credits'] < $monthsAdded) {
+                            return ['success' => false, 'message' => 'O usuário master não tem créditos suficientes para esta extensão'];
+                        }
+                        
+                        // Deduzir créditos do master
+                        $this->deductCredits($currentUser['parent_user_id'], $monthsAdded);
+                    }
                 }
             }
             
@@ -189,11 +256,118 @@ class User {
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
                 SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
-                SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins
+                SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins,
+                SUM(CASE WHEN role = 'master' THEN 1 ELSE 0 END) as masters
             FROM usuarios
         ");
         $stmt->execute();
         return $stmt->fetch();
+    }
+    
+    // Adicionar créditos a um usuário
+    public function addCredits($userId, $amount) {
+        try {
+            if ($amount <= 0) {
+                return ['success' => false, 'message' => 'A quantidade de créditos deve ser maior que zero'];
+            }
+            
+            $stmt = $this->db->prepare("UPDATE usuarios SET credits = credits + ? WHERE id = ?");
+            $stmt->execute([$amount, $userId]);
+            
+            return ['success' => true, 'message' => "{$amount} créditos adicionados com sucesso"];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Erro ao adicionar créditos: ' . $e->getMessage()];
+        }
+    }
+    
+    // Deduzir créditos de um usuário
+    public function deductCredits($userId, $amount) {
+        try {
+            if ($amount <= 0) {
+                return ['success' => false, 'message' => 'A quantidade de créditos deve ser maior que zero'];
+            }
+            
+            // Verificar se o usuário tem créditos suficientes
+            $stmt = $this->db->prepare("SELECT credits FROM usuarios WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            
+            if (!$user) {
+                return ['success' => false, 'message' => 'Usuário não encontrado'];
+            }
+            
+            if ($user['credits'] < $amount) {
+                return ['success' => false, 'message' => 'Créditos insuficientes'];
+            }
+            
+            // Deduzir créditos
+            $stmt = $this->db->prepare("UPDATE usuarios SET credits = credits - ? WHERE id = ?");
+            $stmt->execute([$amount, $userId]);
+            
+            return ['success' => true, 'message' => "{$amount} créditos deduzidos com sucesso"];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Erro ao deduzir créditos: ' . $e->getMessage()];
+        }
+    }
+    
+    // Obter créditos de um usuário
+    public function getUserCredits($userId) {
+        try {
+            $stmt = $this->db->prepare("SELECT credits FROM usuarios WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            
+            if (!$user) {
+                return 0;
+            }
+            
+            return $user['credits'];
+        } catch (PDOException $e) {
+            error_log("Erro ao obter créditos do usuário: " . $e->getMessage());
+            return 0;
+        }
+    }
+    
+    // Obter usuários criados por um master
+    public function getUsersByParentId($parentId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id, username, email, role, status, expires_at, created_at, last_login 
+                FROM usuarios 
+                WHERE parent_user_id = ?
+                ORDER BY created_at DESC
+            ");
+            $stmt->execute([$parentId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            error_log("Erro ao obter usuários do master: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    // Comprar créditos para um usuário master
+    public function purchaseCredits($userId, $amount, $paymentId = null) {
+        try {
+            $this->db->beginTransaction();
+            
+            // Adicionar créditos
+            $stmt = $this->db->prepare("UPDATE usuarios SET credits = credits + ? WHERE id = ? AND role = 'master'");
+            $stmt->execute([$amount, $userId]);
+            
+            if ($stmt->rowCount() === 0) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Usuário não encontrado ou não é um master'];
+            }
+            
+            // Registrar a compra de créditos (se necessário, pode-se criar uma tabela para isso)
+            // ...
+            
+            $this->db->commit();
+            return ['success' => true, 'message' => "{$amount} créditos adicionados com sucesso"];
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'message' => 'Erro ao comprar créditos: ' . $e->getMessage()];
+        }
     }
 }
 ?>

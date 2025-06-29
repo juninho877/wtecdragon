@@ -45,12 +45,15 @@ class Database {
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
             email VARCHAR(100) UNIQUE,
-            role ENUM('admin', 'user') DEFAULT 'user',
+            role ENUM('admin', 'master', 'user') DEFAULT 'user',
             status ENUM('active', 'inactive') DEFAULT 'active',
             expires_at DATE NULL,
+            credits INT DEFAULT 0,
+            parent_user_id INT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            last_login TIMESTAMP NULL
+            last_login TIMESTAMP NULL,
+            FOREIGN KEY (parent_user_id) REFERENCES usuarios(id) ON DELETE SET NULL
         );
         
         CREATE TABLE IF NOT EXISTS user_sessions (
@@ -102,6 +105,8 @@ class Database {
             discount_3_months_percent DECIMAL(5, 2) DEFAULT 5.00,
             discount_6_months_percent DECIMAL(5, 2) DEFAULT 10.00,
             discount_12_months_percent DECIMAL(5, 2) DEFAULT 15.00,
+            credit_price DECIMAL(10, 2) DEFAULT 1.00,
+            min_credit_purchase INT DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE
@@ -155,6 +160,77 @@ class Database {
                     ADD COLUMN discount_12_months_percent DECIMAL(5, 2) DEFAULT 15.00 AFTER discount_6_months_percent
                 ");
             }
+            
+            // Verificar se a coluna credit_price existe
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'mercadopago_settings' AND COLUMN_NAME = 'credit_price'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                // Adicionar colunas para o sistema de créditos
+                $this->connection->exec("
+                    ALTER TABLE mercadopago_settings 
+                    ADD COLUMN credit_price DECIMAL(10, 2) DEFAULT 1.00 AFTER discount_12_months_percent,
+                    ADD COLUMN min_credit_purchase INT DEFAULT 1 AFTER credit_price
+                ");
+            }
+            
+            // Verificar se a coluna credits existe na tabela usuarios
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'credits'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                // Adicionar coluna credits
+                $this->connection->exec("
+                    ALTER TABLE usuarios 
+                    ADD COLUMN credits INT DEFAULT 0 AFTER expires_at
+                ");
+            }
+            
+            // Verificar se a coluna parent_user_id existe na tabela usuarios
+            $stmt = $this->connection->prepare("
+                SELECT COUNT(*) as column_exists 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'parent_user_id'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result['column_exists'] == 0) {
+                // Adicionar coluna parent_user_id
+                $this->connection->exec("
+                    ALTER TABLE usuarios 
+                    ADD COLUMN parent_user_id INT NULL AFTER credits,
+                    ADD FOREIGN KEY (parent_user_id) REFERENCES usuarios(id) ON DELETE SET NULL
+                ");
+            }
+            
+            // Verificar se o valor 'master' existe no ENUM role
+            $stmt = $this->connection->prepare("
+                SELECT COLUMN_TYPE 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'role'
+            ");
+            $stmt->execute([$this->dbname]);
+            $result = $stmt->fetch();
+            
+            if ($result && strpos($result['COLUMN_TYPE'], 'master') === false) {
+                // Adicionar 'master' ao ENUM role
+                $this->connection->exec("
+                    ALTER TABLE usuarios 
+                    MODIFY COLUMN role ENUM('admin', 'master', 'user') DEFAULT 'user'
+                ");
+            }
+            
         } catch (PDOException $e) {
             error_log("Erro ao verificar/adicionar colunas: " . $e->getMessage());
         }

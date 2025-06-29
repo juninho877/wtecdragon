@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'admin') {
+if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'master') {
     header("Location: login.php");
     exit();
 }
@@ -10,15 +10,18 @@ require_once 'classes/User.php';
 $user = new User();
 $message = '';
 $messageType = '';
+$masterId = $_SESSION['user_id'];
+$masterCredits = $user->getUserCredits($masterId);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = [
         'username' => trim($_POST['username']),
         'email' => trim($_POST['email']),
         'password' => trim($_POST['password']),
-        'role' => $_POST['role'],
+        'role' => 'user', // Master só pode criar usuários comuns
         'status' => $_POST['status'],
-        'expires_at' => !empty($_POST['expires_at']) ? $_POST['expires_at'] : null
+        'expires_at' => !empty($_POST['expires_at']) ? $_POST['expires_at'] : null,
+        'parent_user_id' => $masterId // Definir o master como pai do usuário
     ];
     
     // Validações
@@ -31,13 +34,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($_POST['password'] !== $_POST['confirm_password']) {
         $message = 'As senhas não coincidem';
         $messageType = 'error';
+    } elseif ($masterCredits < 1) {
+        $message = 'Você não tem créditos suficientes para criar um novo usuário';
+        $messageType = 'error';
     } else {
         $result = $user->createUser($data);
         $message = $result['message'];
         $messageType = $result['success'] ? 'success' : 'error';
         
         if ($result['success']) {
-            header("Location: user_management.php?success=1");
+            header("Location: master_users.php?success=1");
             exit();
         }
     }
@@ -71,6 +77,16 @@ include "includes/header.php";
                     </div>
                 <?php endif; ?>
 
+                <?php if ($masterCredits < 1): ?>
+                    <div class="alert alert-warning mb-6">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <p class="font-medium">Créditos insuficientes</p>
+                            <p class="text-sm mt-1">Você não tem créditos suficientes para criar um novo usuário. <a href="buy_credits.php" class="text-primary-500 hover:underline">Compre mais créditos</a> para continuar.</p>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <form method="POST" action="">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="form-group">
@@ -80,7 +96,7 @@ include "includes/header.php";
                             </label>
                             <input type="text" id="username" name="username" class="form-input" 
                                    value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" 
-                                   placeholder="Digite o nome de usuário" required>
+                                   placeholder="Digite o nome de usuário" required <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
                         </div>
 
                         <div class="form-group">
@@ -90,7 +106,7 @@ include "includes/header.php";
                             </label>
                             <input type="email" id="email" name="email" class="form-input" 
                                    value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" 
-                                   placeholder="Digite o email (opcional)">
+                                   placeholder="Digite o email (opcional)" <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
                         </div>
                     </div>
 
@@ -102,8 +118,8 @@ include "includes/header.php";
                             </label>
                             <div class="relative">
                                 <input type="password" id="password" name="password" class="form-input pr-10" 
-                                       placeholder="Mínimo de 6 caracteres" required>
-                                <button type="button" class="password-toggle" data-target="password">
+                                       placeholder="Mínimo de 6 caracteres" required <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
+                                <button type="button" class="password-toggle" data-target="password" <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -116,33 +132,21 @@ include "includes/header.php";
                             </label>
                             <div class="relative">
                                 <input type="password" id="confirm_password" name="confirm_password" class="form-input pr-10" 
-                                       placeholder="Repita a senha" required>
-                                <button type="button" class="password-toggle" data-target="confirm_password">
+                                       placeholder="Repita a senha" required <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
+                                <button type="button" class="password-toggle" data-target="confirm_password" <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="form-group">
-                            <label for="role" class="form-label required">
-                                <i class="fas fa-user-tag mr-2"></i>
-                                Função
-                            </label>
-                            <select id="role" name="role" class="form-input form-select" required>
-                                <option value="user" <?php echo ($_POST['role'] ?? '') === 'user' ? 'selected' : ''; ?>>Usuário</option>
-                                <option value="master" <?php echo ($_POST['role'] ?? '') === 'master' ? 'selected' : ''; ?>>Master</option>
-                                <option value="admin" <?php echo ($_POST['role'] ?? '') === 'admin' ? 'selected' : ''; ?>>Administrador</option>
-                            </select>
-                        </div>
-
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="form-group">
                             <label for="status" class="form-label required">
                                 <i class="fas fa-toggle-on mr-2"></i>
                                 Status
                             </label>
-                            <select id="status" name="status" class="form-input form-select" required>
+                            <select id="status" name="status" class="form-input form-select" required <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
                                 <option value="active" <?php echo ($_POST['status'] ?? 'active') === 'active' ? 'selected' : ''; ?>>Ativo</option>
                                 <option value="inactive" <?php echo ($_POST['status'] ?? '') === 'inactive' ? 'selected' : ''; ?>>Inativo</option>
                             </select>
@@ -154,18 +158,18 @@ include "includes/header.php";
                                 Data de Expiração
                             </label>
                             <input type="date" id="expires_at" name="expires_at" class="form-input" 
-                                   value="<?php echo htmlspecialchars($_POST['expires_at'] ?? ''); ?>" 
-                                   min="<?php echo date('Y-m-d'); ?>">
-                            <p class="text-xs text-muted mt-1">Deixe em branco para nunca expirar</p>
+                                   value="<?php echo htmlspecialchars($_POST['expires_at'] ?? date('Y-m-d', strtotime('+30 days'))); ?>" 
+                                   min="<?php echo date('Y-m-d'); ?>" <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
+                            <p class="text-xs text-muted mt-1">Padrão: 30 dias a partir de hoje (consome 1 crédito)</p>
                         </div>
                     </div>
 
                     <div class="flex gap-4 pt-4">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
                             <i class="fas fa-save"></i>
                             Criar Usuário
                         </button>
-                        <a href="user_management.php" class="btn btn-secondary">
+                        <a href="master_users.php" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i>
                             Voltar
                         </a>
@@ -177,6 +181,36 @@ include "includes/header.php";
 
     <!-- Info Panel -->
     <div class="space-y-6">
+        <!-- Credit Info -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-coins text-warning-500 mr-2"></i>
+                    Seus Créditos
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="credit-display">
+                    <div class="credit-amount"><?php echo $masterCredits; ?></div>
+                    <div class="credit-label">créditos disponíveis</div>
+                </div>
+                
+                <div class="credit-info mt-4">
+                    <p class="text-sm text-muted">Cada novo usuário criado consome 1 crédito</p>
+                    <p class="text-sm text-muted">Cada renovação de usuário também consome 1 crédito</p>
+                </div>
+                
+                <?php if ($masterCredits < 3): ?>
+                <div class="mt-4">
+                    <a href="buy_credits.php" class="btn btn-warning w-full">
+                        <i class="fas fa-shopping-cart"></i>
+                        Comprar Mais Créditos
+                    </a>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <!-- Guidelines -->
         <div class="card">
             <div class="card-header">
@@ -199,34 +233,11 @@ include "includes/header.php";
                         </div>
                     </div>
                     <div class="flex items-start gap-3">
-                        <i class="fas fa-shield-alt text-warning-500 mt-0.5"></i>
+                        <i class="fas fa-calendar-alt text-warning-500 mt-0.5"></i>
                         <div>
-                            <p class="font-medium">Função adequada</p>
-                            <p class="text-muted">Escolha o nível de acesso correto</p>
+                            <p class="font-medium">Expiração padrão</p>
+                            <p class="text-muted">30 dias a partir de hoje</p>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Roles Info -->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">👥 Tipos de Usuário</h3>
-            </div>
-            <div class="card-body">
-                <div class="space-y-4">
-                    <div class="p-3 bg-success-50 rounded-lg">
-                        <h4 class="font-semibold text-success-700 mb-1">Usuário</h4>
-                        <p class="text-sm text-success-600">Acesso aos geradores de banner</p>
-                    </div>
-                    <div class="p-3 bg-primary-50 rounded-lg">
-                        <h4 class="font-semibold text-primary-700 mb-1">Master</h4>
-                        <p class="text-sm text-primary-600">Pode criar e gerenciar seus próprios usuários</p>
-                    </div>
-                    <div class="p-3 bg-warning-50 rounded-lg">
-                        <h4 class="font-semibold text-warning-700 mb-1">Administrador</h4>
-                        <p class="text-sm text-warning-600">Acesso total + gerenciamento de usuários</p>
                     </div>
                 </div>
             </div>
@@ -261,6 +272,12 @@ include "includes/header.php";
         border: 1px solid rgba(239, 68, 68, 0.2);
     }
     
+    .alert-warning {
+        background: var(--warning-50);
+        color: var(--warning-600);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
     .password-toggle {
         position: absolute;
         right: 0.75rem;
@@ -280,6 +297,31 @@ include "includes/header.php";
         background: var(--bg-tertiary);
     }
 
+    .credit-display {
+        text-align: center;
+        padding: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius);
+    }
+
+    .credit-amount {
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--success-500);
+        line-height: 1;
+    }
+
+    .credit-label {
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+    }
+
+    .credit-info {
+        background: var(--bg-tertiary);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+    }
+
     /* Dark theme adjustments */
     [data-theme="dark"] .alert-success {
         background: rgba(34, 197, 94, 0.1);
@@ -290,41 +332,10 @@ include "includes/header.php";
         background: rgba(239, 68, 68, 0.1);
         color: var(--danger-400);
     }
-
-    [data-theme="dark"] .bg-primary-50 {
-        background: rgba(59, 130, 246, 0.1);
-    }
-
-    [data-theme="dark"] .text-primary-700 {
-        color: var(--primary-400);
-    }
-
-    [data-theme="dark"] .text-primary-600 {
-        color: var(--primary-300);
-    }
-
-    [data-theme="dark"] .bg-warning-50 {
-        background: rgba(245, 158, 11, 0.1);
-    }
-
-    [data-theme="dark"] .text-warning-700 {
-        color: var(--warning-400);
-    }
-
-    [data-theme="dark"] .text-warning-600 {
-        color: var(--warning-300);
-    }
     
-    [data-theme="dark"] .bg-success-50 {
-        background: rgba(34, 197, 94, 0.1);
-    }
-
-    [data-theme="dark"] .text-success-700 {
-        color: var(--success-400);
-    }
-
-    [data-theme="dark"] .text-success-600 {
-        color: var(--success-300);
+    [data-theme="dark"] .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-400);
     }
 </style>
 

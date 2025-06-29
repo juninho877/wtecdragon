@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'admin') {
+if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'master') {
     header("Location: login.php");
     exit();
 }
@@ -10,26 +10,53 @@ require_once 'classes/User.php';
 $userClass = new User();
 $message = '';
 $messageType = '';
+$masterId = $_SESSION['user_id'];
+$masterCredits = $userClass->getUserCredits($masterId);
 
 // Verificar se o ID foi fornecido
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    header("Location: user_management.php");
+    header("Location: master_users.php");
     exit();
 }
 
 $userId = (int)$_GET['id'];
 $userData = $userClass->getUserById($userId);
 
-if (!$userData) {
-    header("Location: user_management.php?error=user_not_found");
+// Verificar se o usuário existe e pertence ao master atual
+if (!$userData || $userData['parent_user_id'] != $masterId) {
+    header("Location: master_users.php?error=user_not_found");
     exit();
 }
 
+// Calcular se a renovação vai consumir créditos
+$willConsumeCredits = false;
+$creditsNeeded = 0;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verificar se a data de expiração está sendo estendida
+    if (!empty($_POST['expires_at']) && !empty($userData['expires_at'])) {
+        $currentExpiryDate = new DateTime($userData['expires_at']);
+        $newExpiryDate = new DateTime($_POST['expires_at']);
+        
+        if ($newExpiryDate > $currentExpiryDate) {
+            // Calcular quantos meses foram adicionados (aproximadamente)
+            $diff = $currentExpiryDate->diff($newExpiryDate);
+            $monthsAdded = ($diff->y * 12) + $diff->m;
+            
+            // Se a diferença é de pelo menos 15 dias, considerar como um mês adicional
+            if ($diff->d >= 15) {
+                $monthsAdded++;
+            }
+            
+            $creditsNeeded = max(1, $monthsAdded);
+            $willConsumeCredits = true;
+        }
+    }
+    
     $data = [
         'username' => trim($_POST['username']),
         'email' => trim($_POST['email']),
-        'role' => $_POST['role'],
+        'role' => 'user', // Master só pode editar usuários comuns
         'status' => $_POST['status'],
         'expires_at' => !empty($_POST['expires_at']) ? $_POST['expires_at'] : null
     ];
@@ -51,6 +78,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($data['username'])) {
             $message = 'Nome de usuário é obrigatório';
             $messageType = 'error';
+        } elseif ($willConsumeCredits && $masterCredits < $creditsNeeded) {
+            $message = "Você não tem créditos suficientes para esta renovação. Necessário: {$creditsNeeded}, Disponível: {$masterCredits}";
+            $messageType = 'error';
         } else {
             $result = $userClass->updateUser($userId, $data);
             $message = $result['message'];
@@ -59,6 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result['success']) {
                 // Recarregar dados do usuário
                 $userData = $userClass->getUserById($userId);
+                // Recarregar créditos do master
+                $masterCredits = $userClass->getUserCredits($masterId);
             }
         }
     }
@@ -149,19 +181,7 @@ include "includes/header.php";
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="form-group">
-                            <label for="role" class="form-label required">
-                                <i class="fas fa-user-tag mr-2"></i>
-                                Função
-                            </label>
-                            <select id="role" name="role" class="form-input form-select" required>
-                                <option value="user" <?php echo ($_POST['role'] ?? $userData['role']) === 'user' ? 'selected' : ''; ?>>Usuário</option>
-                                <option value="master" <?php echo ($_POST['role'] ?? $userData['role']) === 'master' ? 'selected' : ''; ?>>Master</option>
-                                <option value="admin" <?php echo ($_POST['role'] ?? $userData['role']) === 'admin' ? 'selected' : ''; ?>>Administrador</option>
-                            </select>
-                        </div>
-
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="form-group">
                             <label for="status" class="form-label required">
                                 <i class="fas fa-toggle-on mr-2"></i>
@@ -181,7 +201,13 @@ include "includes/header.php";
                             <input type="date" id="expires_at" name="expires_at" class="form-input" 
                                    value="<?php echo htmlspecialchars($_POST['expires_at'] ?? $userData['expires_at'] ?? ''); ?>" 
                                    min="<?php echo date('Y-m-d'); ?>">
-                            <p class="text-xs text-muted mt-1">Deixe em branco para nunca expirar</p>
+                            <p class="text-xs text-muted mt-1">
+                                <?php if ($willConsumeCredits): ?>
+                                    Estender a data consumirá <?php echo $creditsNeeded; ?> crédito(s)
+                                <?php else: ?>
+                                    Estender a data consumirá créditos
+                                <?php endif; ?>
+                            </p>
                         </div>
                     </div>
 
@@ -190,7 +216,7 @@ include "includes/header.php";
                             <i class="fas fa-save"></i>
                             Salvar Alterações
                         </button>
-                        <a href="user_management.php" class="btn btn-secondary">
+                        <a href="master_users.php" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i>
                             Voltar
                         </a>
@@ -220,23 +246,6 @@ include "includes/header.php";
                 
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-muted">Função:</span>
-                        <span class="role-badge role-<?php echo $userData['role']; ?>">
-                            <?php 
-                            switch ($userData['role']) {
-                                case 'admin':
-                                    echo 'Administrador';
-                                    break;
-                                case 'master':
-                                    echo 'Master';
-                                    break;
-                                default:
-                                    echo 'Usuário';
-                            }
-                            ?>
-                        </span>
-                    </div>
-                    <div class="flex justify-between">
                         <span class="text-muted">Status:</span>
                         <span class="status-badge status-<?php echo $userData['status']; ?>">
                             <?php echo $userData['status'] === 'active' ? 'Ativo' : 'Inativo'; ?>
@@ -245,6 +254,23 @@ include "includes/header.php";
                     <div class="flex justify-between">
                         <span class="text-muted">Criado em:</span>
                         <span><?php echo date('d/m/Y', strtotime($userData['created_at'])); ?></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted">Expira em:</span>
+                        <span>
+                            <?php 
+                            if ($userData['expires_at']) {
+                                $expiresAt = new DateTime($userData['expires_at']);
+                                $now = new DateTime();
+                                $isExpired = $expiresAt < $now;
+                                echo '<span class="' . ($isExpired ? 'text-danger-500' : 'text-success-500') . '">';
+                                echo $expiresAt->format('d/m/Y');
+                                echo '</span>';
+                            } else {
+                                echo 'Nunca';
+                            }
+                            ?>
+                        </span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted">Último login:</span>
@@ -258,29 +284,39 @@ include "includes/header.php";
                             ?>
                         </span>
                     </div>
-                    <?php if ($userData['role'] === 'master'): ?>
-                    <div class="flex justify-between">
-                        <span class="text-muted">Créditos:</span>
-                        <span class="font-semibold text-success-500"><?php echo $userData['credits']; ?></span>
-                    </div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>
 
-        <!-- Security Warning -->
-        <?php if ($userData['id'] == $_SESSION['user_id']): ?>
-        <div class="card border-warning-200">
+        <!-- Credit Info -->
+        <div class="card">
             <div class="card-header">
-                <h3 class="card-title text-warning-600">⚠️ Atenção</h3>
+                <h3 class="card-title">
+                    <i class="fas fa-coins text-warning-500 mr-2"></i>
+                    Seus Créditos
+                </h3>
             </div>
             <div class="card-body">
-                <p class="text-sm text-warning-600">
-                    Você está editando sua própria conta. Tenha cuidado ao alterar suas permissões ou status.
-                </p>
+                <div class="credit-display">
+                    <div class="credit-amount"><?php echo $masterCredits; ?></div>
+                    <div class="credit-label">créditos disponíveis</div>
+                </div>
+                
+                <div class="credit-info mt-4">
+                    <p class="text-sm text-muted">Estender a data de expiração consome créditos</p>
+                    <p class="text-sm text-muted">Cada mês adicional = 1 crédito</p>
+                </div>
+                
+                <?php if ($masterCredits < 3): ?>
+                <div class="mt-4">
+                    <a href="buy_credits.php" class="btn btn-warning w-full">
+                        <i class="fas fa-shopping-cart"></i>
+                        Comprar Mais Créditos
+                    </a>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
-        <?php endif; ?>
 
         <!-- Quick Actions -->
         <div class="card">
@@ -301,19 +337,10 @@ include "includes/header.php";
                         </button>
                     <?php endif; ?>
                     
-                    <?php if ($userData['role'] === 'master'): ?>
-                        <button class="btn btn-primary w-full text-sm add-credits" data-user-id="<?php echo $userData['id']; ?>">
-                            <i class="fas fa-coins"></i>
-                            Adicionar Créditos
-                        </button>
-                    <?php endif; ?>
-                    
-                    <?php if ($userData['id'] != $_SESSION['user_id']): ?>
-                        <button class="btn btn-danger w-full text-sm delete-user" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>">
-                            <i class="fas fa-trash"></i>
-                            Excluir Usuário
-                        </button>
-                    <?php endif; ?>
+                    <button class="btn btn-danger w-full text-sm delete-user" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>">
+                        <i class="fas fa-trash"></i>
+                        Excluir Usuário
+                    </button>
                 </div>
             </div>
         </div>
@@ -347,6 +374,12 @@ include "includes/header.php";
         border: 1px solid rgba(239, 68, 68, 0.2);
     }
     
+    .alert-warning {
+        background: var(--warning-50);
+        color: var(--warning-600);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
     .password-toggle {
         position: absolute;
         right: 0.75rem;
@@ -378,15 +411,10 @@ include "includes/header.php";
         background: var(--warning-50);
         color: var(--warning-600);
     }
-    
-    .role-master {
-        background: var(--primary-50);
-        color: var(--primary-600);
-    }
 
     .role-user {
-        background: var(--success-50);
-        color: var(--success-600);
+        background: var(--primary-50);
+        color: var(--primary-600);
     }
 
     .status-active {
@@ -399,12 +427,42 @@ include "includes/header.php";
         color: var(--danger-600);
     }
 
-    .border-warning-200 {
-        border-color: rgba(245, 158, 11, 0.3);
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.875rem;
     }
 
-    .text-warning-600 {
-        color: var(--warning-600);
+    .credit-display {
+        text-align: center;
+        padding: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius);
+    }
+
+    .credit-amount {
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--success-500);
+        line-height: 1;
+    }
+
+    .credit-label {
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+    }
+
+    .credit-info {
+        background: var(--bg-tertiary);
+        padding: 1rem;
+        border-radius: var(--border-radius);
     }
 
     /* Dark theme adjustments */
@@ -418,6 +476,11 @@ include "includes/header.php";
         color: var(--danger-400);
     }
 
+    [data-theme="dark"] .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-400);
+    }
+
     [data-theme="dark"] .border-gray-200 {
         border-color: var(--border-color);
     }
@@ -426,15 +489,10 @@ include "includes/header.php";
         background: rgba(245, 158, 11, 0.1);
         color: var(--warning-400);
     }
-    
-    [data-theme="dark"] .role-master {
-        background: rgba(59, 130, 246, 0.1);
-        color: var(--primary-400);
-    }
 
     [data-theme="dark"] .role-user {
-        background: rgba(34, 197, 94, 0.1);
-        color: var(--success-400);
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--primary-400);
     }
 
     [data-theme="dark"] .status-active {
@@ -445,10 +503,6 @@ include "includes/header.php";
     [data-theme="dark"] .status-inactive {
         background: rgba(239, 68, 68, 0.1);
         color: var(--danger-400);
-    }
-
-    [data-theme="dark"] .text-warning-600 {
-        color: var(--warning-400);
     }
 </style>
 
@@ -536,41 +590,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
-    
-    // Add Credits
-    document.querySelectorAll('.add-credits').forEach(button => {
-        button.addEventListener('click', function() {
-            const userId = this.getAttribute('data-user-id');
-            
-            Swal.fire({
-                title: 'Adicionar Créditos',
-                text: 'Quantos créditos deseja adicionar?',
-                input: 'number',
-                inputAttributes: {
-                    min: 1,
-                    step: 1
-                },
-                inputValue: 1,
-                showCancelButton: true,
-                confirmButtonText: 'Adicionar',
-                cancelButtonText: 'Cancelar',
-                background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b',
-                inputValidator: (value) => {
-                    if (!value || value < 1) {
-                        return 'Você precisa adicionar pelo menos 1 crédito!';
-                    }
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    addCredits(userId, result.value);
-                }
-            });
-        });
-    });
 
     function changeUserStatus(userId, status) {
-        fetch('../user_management.php', {
+        fetch('master_users.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -602,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function deleteUser(userId) {
-        fetch('../user_management.php', {
+        fetch('master_users.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -619,39 +641,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
                     color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
                 }).then(() => {
-                    window.location.href = 'user_management.php';
-                });
-            } else {
-                Swal.fire({
-                    title: 'Erro!',
-                    text: data.message,
-                    icon: 'error',
-                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-                });
-            }
-        });
-    }
-    
-    function addCredits(userId, credits) {
-        fetch('../user_management.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `action=add_credits&user_id=${userId}&credits=${credits}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                Swal.fire({
-                    title: 'Sucesso!',
-                    text: data.message,
-                    icon: 'success',
-                    background: document.body.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
-                    color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
-                }).then(() => {
-                    location.reload();
+                    window.location.href = 'master_users.php';
                 });
             } else {
                 Swal.fire({

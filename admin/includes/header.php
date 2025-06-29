@@ -728,6 +728,24 @@ if (!isset($_SESSION["usuario"])) {
                 </div>
                 <?php endif; ?>
 
+                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'master'): ?>
+                <div class="nav-section">
+                    <div class="nav-section-title">Gerenciamento</div>
+                    <a href="master_users.php" class="nav-item">
+                        <i class="fas fa-users"></i>
+                        <span>Meus Usuários</span>
+                    </a>
+                    <a href="buy_credits.php" class="nav-item">
+                        <i class="fas fa-coins"></i>
+                        <span>Comprar Créditos</span>
+                    </a>
+                    <a href="mercadopago_master.php" class="nav-item">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>Mercado Pago</span>
+                    </a>
+                </div>
+                <?php endif; ?>
+
                 <div class="nav-section">
                     <div class="nav-section-title">Sistema</div>
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'): ?>
@@ -750,7 +768,21 @@ if (!isset($_SESSION["usuario"])) {
                     </div>
                     <div class="user-details">
                         <h4><?php echo htmlspecialchars($_SESSION["usuario"]); ?></h4>
-                        <p><?php echo isset($_SESSION['role']) && $_SESSION['role'] === 'admin' ? 'Administrador' : 'Usuário'; ?></p>
+                        <p>
+                            <?php 
+                            if (isset($_SESSION['role'])) {
+                                if ($_SESSION['role'] === 'admin') {
+                                    echo 'Administrador';
+                                } elseif ($_SESSION['role'] === 'master') {
+                                    echo 'Master';
+                                } else {
+                                    echo 'Usuário';
+                                }
+                            } else {
+                                echo 'Usuário';
+                            }
+                            ?>
+                        </p>
                     </div>
                 </div>
                 <a href="logout.php" class="nav-item">

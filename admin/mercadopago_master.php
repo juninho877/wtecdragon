@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'admin') {
+if (!isset($_SESSION["usuario"]) || $_SESSION["role"] !== 'master') {
     header("Location: login.php");
     exit();
 }
@@ -23,8 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $discount3Months = floatval(str_replace(',', '.', $_POST['discount_3_months']));
                 $discount6Months = floatval(str_replace(',', '.', $_POST['discount_6_months']));
                 $discount12Months = floatval(str_replace(',', '.', $_POST['discount_12_months']));
-                $creditPrice = floatval(str_replace(',', '.', $_POST['credit_price']));
-                $minCreditPurchase = intval($_POST['min_credit_purchase']);
                 
                 $result = $mercadoPagoSettings->saveSettings(
                     $userId, 
@@ -35,27 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $discount6Months,
                     $discount12Months
                 );
-                
-                // Atualizar configurações de crédito
-                if ($result['success']) {
-                    // Buscar configurações atuais
-                    $currentSettings = $mercadoPagoSettings->getSettings($userId);
-                    
-                    // Atualizar apenas as configurações de crédito
-                    $stmt = $mercadoPagoSettings->db->prepare("
-                        UPDATE mercadopago_settings 
-                        SET 
-                            credit_price = ?,
-                            min_credit_purchase = ?
-                        WHERE user_id = ?
-                    ");
-                    
-                    $stmt->execute([
-                        $creditPrice,
-                        $minCreditPurchase,
-                        $userId
-                    ]);
-                }
                 
                 $message = $result['message'];
                 $messageType = $result['success'] ? 'success' : 'error';
@@ -82,9 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $currentSettings = $mercadoPagoSettings->getSettings($userId);
 $hasSettings = $currentSettings !== false;
 
-// Obter estatísticas
-$stats = $mercadoPagoSettings->getUsageStats();
-
 $pageTitle = "Configurações do Mercado Pago";
 include "includes/header.php";
 ?>
@@ -94,7 +68,7 @@ include "includes/header.php";
         <i class="fas fa-money-bill-wave text-primary-500 mr-3"></i>
         Configurações do Mercado Pago
     </h1>
-    <p class="page-subtitle">Configure a integração com o Mercado Pago para pagamentos</p>
+    <p class="page-subtitle">Configure a integração com o Mercado Pago para seus usuários</p>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -149,7 +123,7 @@ include "includes/header.php";
                                    placeholder="29,90" required>
                         </div>
                         <p class="text-xs text-muted mt-1">
-                            Valor base mensal que será cobrado para renovação de acesso dos usuários
+                            Valor base mensal que será cobrado para renovação de acesso dos seus usuários
                         </p>
                     </div>
                     
@@ -218,42 +192,6 @@ include "includes/header.php";
                                 </div>
                                 <p class="text-xs text-muted mt-1">
                                     Porcentagem de desconto para plano anual
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="border-t border-gray-200 my-6 pt-6">
-                        <h4 class="text-lg font-semibold mb-4">
-                            <i class="fas fa-coins mr-2"></i>
-                            Configuração de Créditos para Masters
-                        </h4>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="form-group">
-                                <label for="credit_price" class="form-label required">
-                                    Preço por Crédito
-                                </label>
-                                <div class="input-with-prefix">
-                                    <span class="input-prefix">R$</span>
-                                    <input type="text" id="credit_price" name="credit_price" class="form-input with-prefix" 
-                                           value="<?php echo htmlspecialchars(number_format($currentSettings['credit_price'] ?? 1.00, 2, ',', '.')); ?>" 
-                                           placeholder="1,00" required>
-                                </div>
-                                <p class="text-xs text-muted mt-1">
-                                    Valor que será cobrado por cada crédito comprado pelos masters
-                                </p>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="min_credit_purchase" class="form-label required">
-                                    Compra Mínima de Créditos
-                                </label>
-                                <input type="number" id="min_credit_purchase" name="min_credit_purchase" class="form-input" 
-                                       value="<?php echo htmlspecialchars($currentSettings['min_credit_purchase'] ?? 1); ?>" 
-                                       placeholder="1" min="1" step="1" required>
-                                <p class="text-xs text-muted mt-1">
-                                    Quantidade mínima de créditos que um master pode comprar de uma vez
                                 </p>
                             </div>
                         </div>
@@ -383,20 +321,6 @@ include "includes/header.php";
                     </div>
                 </div>
                 
-                <div class="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p class="text-sm font-medium mb-2">Configuração de Créditos:</p>
-                    <div class="grid grid-cols-2 gap-2 mt-2">
-                        <div class="text-center">
-                            <span class="text-xs text-muted">Preço por crédito</span>
-                            <p class="font-semibold text-primary-600">R$ <?php echo number_format($currentSettings['credit_price'] ?? 1.00, 2, ',', '.'); ?></p>
-                        </div>
-                        <div class="text-center">
-                            <span class="text-xs text-muted">Compra mínima</span>
-                            <p class="font-semibold text-primary-600"><?php echo $currentSettings['min_credit_purchase'] ?? 1; ?> créditos</p>
-                        </div>
-                    </div>
-                </div>
-                
                 <?php if (!empty($currentSettings['whatsapp_number'])): ?>
                 <div class="mt-4 p-3 bg-gray-50 rounded-lg">
                     <p class="text-sm font-medium mb-2">Suporte WhatsApp:</p>
@@ -407,38 +331,6 @@ include "includes/header.php";
                 </div>
                 <?php endif; ?>
                 <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Estatísticas -->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">📈 Estatísticas</h3>
-            </div>
-            <div class="card-body">
-                <div class="space-y-3">
-                    <div class="stat-item">
-                        <span class="stat-label">Total de usuários configurados:</span>
-                        <span class="stat-value"><?php echo $stats['total_users_configured']; ?></span>
-                    </div>
-                    
-                    <?php if ($stats['total_users_configured'] > 0): ?>
-                    <div class="stat-item">
-                        <span class="stat-label">Valor médio de acesso:</span>
-                        <span class="stat-value">R$ <?php echo number_format($stats['avg_access_value'], 2, ',', '.'); ?></span>
-                    </div>
-                    
-                    <div class="stat-item">
-                        <span class="stat-label">Valor mínimo:</span>
-                        <span class="stat-value">R$ <?php echo number_format($stats['min_access_value'], 2, ',', '.'); ?></span>
-                    </div>
-                    
-                    <div class="stat-item">
-                        <span class="stat-label">Valor máximo:</span>
-                        <span class="stat-value">R$ <?php echo number_format($stats['max_access_value'], 2, ',', '.'); ?></span>
-                    </div>
-                    <?php endif; ?>
-                </div>
             </div>
         </div>
 
@@ -732,18 +624,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const discount3MonthsInput = document.getElementById('discount_3_months');
     const discount6MonthsInput = document.getElementById('discount_6_months');
     const discount12MonthsInput = document.getElementById('discount_12_months');
-    const creditPriceInput = document.getElementById('credit_price');
-    const minCreditPurchaseInput = document.getElementById('min_credit_purchase');
 
     // Formatar valor monetário
     userAccessValueInput.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        value = (parseInt(value) / 100).toFixed(2);
-        e.target.value = value.replace('.', ',');
-    });
-    
-    // Formatar valor do crédito
-    creditPriceInput.addEventListener('input', function(e) {
         let value = e.target.value.replace(/\D/g, '');
         value = (parseInt(value) / 100).toFixed(2);
         e.target.value = value.replace('.', ',');
@@ -759,14 +642,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.value = value.toFixed(2).replace('.', ',');
         });
     });
-    
-    // Validar compra mínima de créditos
-    minCreditPurchaseInput.addEventListener('input', function(e) {
-        let value = parseInt(e.target.value);
-        if (isNaN(value) || value < 1) {
-            e.target.value = 1;
-        }
-    });
 
     // Testar Conexão
     testConnectionBtn.addEventListener('click', function() {
@@ -780,7 +655,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.disabled = true;
         this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando...';
 
-        fetch('mercadopago.php', {
+        fetch('mercadopago_master.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -818,7 +693,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando...';
 
-            fetch('mercadopago.php', {
+            fetch('mercadopago_master.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
