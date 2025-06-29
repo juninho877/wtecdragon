@@ -92,7 +92,7 @@ try {
     </div>
 
     <?php if ($data && isset($data['results']) && !empty($data['results'])): ?>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <?php foreach ($data['results'] as $item): 
                 $id = isset($item['id']) ? $item['id'] : 0;
                 $title = isset($item['title']) ? $item['title'] : (isset($item['name']) ? $item['name'] : 'Título não disponível');
