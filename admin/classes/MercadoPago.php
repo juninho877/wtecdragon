@@ -392,9 +392,9 @@ class MercadoPago {
             $stmt = $this->db->prepare("
                 SELECT payment_purpose, related_quantity, is_processed
                 FROM mercadopago_payments 
-                WHERE payment_id = ?
+                WHERE payment_id = ? OR preference_id = ?
             ");
-            $stmt->execute([$paymentId]);
+            $stmt->execute([$paymentId, $paymentId]);
             $paymentInfo = $stmt->fetch();
             
             // Atualizar o status do pagamento no banco de dados
@@ -406,7 +406,7 @@ class MercadoPago {
                     payment_method = ?, 
                     payment_type = ?, 
                     payment_date = ?
-                WHERE payment_id = ?
+                WHERE payment_id = ? OR preference_id = ?
             ");
             
             $paymentDate = isset($payment['date_approved']) ? $payment['date_approved'] : $payment['date_created'];
@@ -417,6 +417,7 @@ class MercadoPago {
                 $payment['payment_method_id'] ?? null,
                 $payment['payment_type_id'] ?? null,
                 date('Y-m-d H:i:s', strtotime($paymentDate)),
+                $paymentId,
                 $paymentId
             ]);
             
@@ -425,9 +426,9 @@ class MercadoPago {
                 // Buscar o usuário associado a este pagamento
                 $stmt = $this->db->prepare("
                     SELECT user_id FROM mercadopago_payments 
-                    WHERE payment_id = ?
+                    WHERE payment_id = ? OR preference_id = ?
                 ");
-                $stmt->execute([$paymentId]);
+                $stmt->execute([$paymentId, $paymentId]);
                 $paymentData = $stmt->fetch();
                 
                 if ($paymentData) {
@@ -448,9 +449,9 @@ class MercadoPago {
                     $stmt = $this->db->prepare("
                         UPDATE mercadopago_payments 
                         SET is_processed = TRUE
-                        WHERE payment_id = ?
+                        WHERE payment_id = ? OR preference_id = ?
                     ");
-                    $stmt->execute([$paymentId]);
+                    $stmt->execute([$paymentId, $paymentId]);
                 }
             }
             

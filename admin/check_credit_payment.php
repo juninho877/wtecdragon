@@ -54,6 +54,15 @@ try {
             if ($addCreditsResult['success']) {
                 $response['message'] = "Pagamento confirmado! {$credits} créditos foram adicionados à sua conta.";
                 $response['should_clear_session'] = true;
+                
+                // Marcar o pagamento como processado
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare("
+                    UPDATE mercadopago_payments 
+                    SET is_processed = TRUE
+                    WHERE payment_id = ?
+                ");
+                $stmt->execute([$paymentId]);
             } else {
                 $response['message'] = "Pagamento aprovado, mas houve um erro ao adicionar os créditos: " . $addCreditsResult['message'];
             }

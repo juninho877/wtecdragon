@@ -71,7 +71,7 @@ class MercadoPagoPayment {
             if (!$adminSettings || empty($adminSettings['access_token'])) {
                 return [
                     'success' => false, 
-                    'message' => 'Configurações do Mercado Pago não encontradas'
+                    'message' => 'Configurações do Mercado Pago não encontradas. Configure primeiro em Mercado Pago > Configurações.'
                 ];
             }
             
@@ -253,9 +253,9 @@ class MercadoPagoPayment {
             $stmt = $this->db->prepare("
                 SELECT payment_purpose, related_quantity, is_processed
                 FROM mercadopago_payments 
-                WHERE preference_id = ?
+                WHERE payment_id = ? OR preference_id = ?
             ");
-            $stmt->execute([$preferenceId]);
+            $stmt->execute([$preferenceId, $preferenceId]);
             $paymentInfo = $stmt->fetch();
             
             // Atualizar o status do pagamento no banco de dados
@@ -267,7 +267,7 @@ class MercadoPagoPayment {
                     payment_method = ?, 
                     payment_type = ?, 
                     payment_date = ?
-                WHERE preference_id = ?
+                WHERE payment_id = ? OR preference_id = ?
             ");
             
             $stmt->execute([
@@ -276,6 +276,7 @@ class MercadoPagoPayment {
                 $payment['payment_method_id'] ?? null,
                 $payment['payment_type_id'] ?? null,
                 date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created'])),
+                $preferenceId,
                 $preferenceId
             ]);
             
@@ -284,9 +285,9 @@ class MercadoPagoPayment {
                 // Buscar o usuário associado a este pagamento
                 $stmt = $this->db->prepare("
                     SELECT user_id FROM mercadopago_payments 
-                    WHERE preference_id = ?
+                    WHERE payment_id = ? OR preference_id = ?
                 ");
-                $stmt->execute([$preferenceId]);
+                $stmt->execute([$preferenceId, $preferenceId]);
                 $paymentData = $stmt->fetch();
                 
                 if ($paymentData) {
@@ -307,9 +308,9 @@ class MercadoPagoPayment {
                     $stmt = $this->db->prepare("
                         UPDATE mercadopago_payments 
                         SET is_processed = TRUE
-                        WHERE preference_id = ?
+                        WHERE payment_id = ? OR preference_id = ?
                     ");
-                    $stmt->execute([$preferenceId]);
+                    $stmt->execute([$preferenceId, $preferenceId]);
                 }
             }
             
@@ -518,9 +519,9 @@ class MercadoPagoPayment {
             // Buscar o pagamento no banco de dados
             $stmt = $this->db->prepare("
                 SELECT user_id, payment_purpose, related_quantity, is_processed FROM mercadopago_payments 
-                WHERE preference_id = ?
+                WHERE preference_id = ? OR payment_id = ?
             ");
-            $stmt->execute([$payment['preference_id']]);
+            $stmt->execute([$payment['preference_id'], $payment['id']]);
             $paymentData = $stmt->fetch();
             
             if (!$paymentData) {
@@ -617,7 +618,7 @@ class MercadoPagoPayment {
                     payment_method = ?, 
                     payment_type = ?, 
                     payment_date = ?
-                WHERE preference_id = ?
+                WHERE preference_id = ? OR payment_id = ?
             ");
             
             $stmt->execute([
@@ -627,14 +628,17 @@ class MercadoPagoPayment {
                 $payment['payment_method_id'] ?? null,
                 $payment['payment_type_id'] ?? null,
                 date('Y-m-d H:i:s', strtotime($payment['date_approved'] ?? $payment['date_created'])),
-                $payment['preference_id']
+                $payment['preference_id'],
+                $payment['id']
             ]);
             
             // Se o pagamento foi aprovado e ainda não foi processado, processar
             if ($payment['status'] === 'approved' && !$isProcessed) {
                 if ($paymentPurpose === 'subscription') {
+                    // Renovar acesso do usuário
                     $this->renewUserAccess($userId, $relatedQuantity);
                 } elseif ($paymentPurpose === 'credit_purchase') {
+                    // Adicionar créditos ao usuário
                     require_once 'User.php';
                     $user = new User();
                     $user->purchaseCredits($userId, $relatedQuantity, $payment['id']);
@@ -644,9 +648,9 @@ class MercadoPagoPayment {
                 $stmt = $this->db->prepare("
                     UPDATE mercadopago_payments 
                     SET is_processed = TRUE
-                    WHERE preference_id = ?
+                    WHERE preference_id = ? OR payment_id = ?
                 ");
-                $stmt->execute([$payment['preference_id']]);
+                $stmt->execute([$payment['preference_id'], $payment['id']]);
             }
             
             return [

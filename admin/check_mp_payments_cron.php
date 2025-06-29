@@ -62,7 +62,7 @@ try {
         log_mp_cron_message("Encontrados " . count($pendingPayments) . " pagamentos pendentes para verificar.");
         foreach ($pendingPayments as $payment) {
             $preferenceId = $payment['preference_id'];
-            $paymentId = $payment['payment_id'];
+            $paymentId = $payment['payment_id'] ?: $preferenceId; // Usar preference_id se payment_id estiver vazio
             $userId = $payment['user_id'];
             $paymentPurpose = $payment['payment_purpose'];
             $relatedQuantity = $payment['related_quantity'];
@@ -70,7 +70,7 @@ try {
             
             log_mp_cron_message("Verificando pagamento para user_id: $userId, preference_id: $preferenceId, payment_purpose: $paymentPurpose, quantity: $relatedQuantity");
             
-            $result = $mercadoPagoPayment->checkPaymentStatus($preferenceId);
+            $result = $mercadoPagoPayment->checkPaymentStatus($paymentId);
             
             if ($result['success']) {
                 log_mp_cron_message("Status atualizado para preference_id: $preferenceId. Novo status: " . $result['status']);
@@ -87,7 +87,7 @@ try {
                     } elseif ($paymentPurpose === 'credit_purchase') {
                         // Adicionar créditos ao usuário
                         $result = $user->purchaseCredits($userId, $relatedQuantity, $paymentId);
-                        log_mp_cron_message("Créditos adicionados para user_id: $userId - $relatedQuantity créditos. Resultado: " . ($result['success'] ? 'Sucesso' : 'Falha'));
+                        log_mp_cron_message("Créditos adicionados para user_id: $userId - $relatedQuantity créditos. Resultado: " . ($result['success'] ? 'Sucesso' : 'Falha - ' . $result['message']));
                     }
                     
                     // Marcar como processado

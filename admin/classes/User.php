@@ -364,7 +364,7 @@ class User {
             $stmt = $this->db->prepare("UPDATE usuarios SET credits = credits + ? WHERE id = ?");
             $stmt->execute([$amount, $userId]);
             
-            // Registrar a compra de créditos (opcional)
+            // Registrar a compra de créditos
             if ($paymentId) {
                 $stmt = $this->db->prepare("
                     INSERT INTO credit_purchases (user_id, amount, payment_id, created_at)
