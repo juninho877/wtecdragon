@@ -356,7 +356,7 @@ include "includes/header.php";
         <p class="card-subtitle"><?php echo $totalJogosHoje; ?> jogos disponíveis para gerar banners</p>
     </div>
     <div class="card-body">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid-responsivo">
             <?php 
             // Mostrar apenas os primeiros 8 jogos no dashboard (aumentado de 6 para 8)
             $jogosLimitados = array_slice($jogos, 0, 8);
