@@ -102,12 +102,12 @@ try {
                 $overview = isset($item['overview']) ? $item['overview'] : '';
                 $rating = isset($item['vote_average']) ? $item['vote_average'] : 0;
             ?>
-                <div class="card group hover:shadow-xl transition-all duration-300">
+                <div class="card hover:shadow-xl transition-all duration-300">
                     <div class="relative overflow-hidden">
                         <?php if ($posterPath): ?>
                             <img src="<?php echo htmlspecialchars($posterPath); ?>" 
                                  alt="Poster de <?php echo htmlspecialchars($title); ?>" 
-                                 class="w-full h-80 object-cover group-hover:scale-105 transition-transform duration-300"
+                                 class="w-full h-80 object-cover hover:scale-105 transition-transform duration-300"
                                  loading="lazy">
                         <?php else: ?>
                             <div class="w-full h-80 bg-gray-200 flex items-center justify-center">
@@ -332,7 +332,7 @@ try {
         transition-duration: 300ms;
     }
     
-    .group:hover .group-hover\:scale-105 {
+    .hover\:scale-105:hover {
         transform: scale(1.05);
     }
     
