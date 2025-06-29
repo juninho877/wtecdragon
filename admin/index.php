@@ -294,7 +294,7 @@ include "includes/header.php";
             <p class="card-subtitle">Acesse rapidamente as funcionalidades principais</p>
         </div>
         <div class="card-body">
-            <div class="grid grid-cols-1 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <a href="painel.php" class="btn btn-primary">
                     <i class="fas fa-film"></i>
                     Gerar Banner Filme/Série
@@ -323,7 +323,7 @@ include "includes/header.php";
             <p class="card-subtitle">Configure a aparência dos seus banners</p>
         </div>
         <div class="card-body">
-            <div class="grid grid-cols-1 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <a href="logo.php" class="btn btn-secondary">
                     <i class="fas fa-image"></i>
                     Gerenciar Logos Futebol
@@ -356,10 +356,10 @@ include "includes/header.php";
         <p class="card-subtitle"><?php echo $totalJogosHoje; ?> jogos disponíveis para gerar banners</p>
     </div>
     <div class="card-body">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <?php 
-            // Mostrar apenas os primeiros 6 jogos no dashboard
-            $jogosLimitados = array_slice($jogos, 0, 6);
+            // Mostrar apenas os primeiros 8 jogos no dashboard (aumentado de 6 para 8)
+            $jogosLimitados = array_slice($jogos, 0, 8);
             foreach ($jogosLimitados as $jogo): 
                 $time1 = $jogo['time1'] ?? 'Time 1';
                 $time2 = $jogo['time2'] ?? 'Time 2';
@@ -384,7 +384,7 @@ include "includes/header.php";
             <?php endforeach; ?>
         </div>
         
-        <?php if ($totalJogosHoje > 6): ?>
+        <?php if ($totalJogosHoje > 8): ?>
             <div class="text-center mt-4">
                 <a href="jogos_hoje.php" class="btn btn-primary">
                     <i class="fas fa-list"></i>
@@ -403,7 +403,7 @@ include "includes/header.php";
         <p class="card-subtitle">Últimas ações realizadas no sistema</p>
     </div>
     <div class="card-body">
-        <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                 <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                     <i class="fas fa-sign-in-alt text-primary-600 text-sm"></i>
