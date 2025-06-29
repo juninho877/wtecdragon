@@ -97,7 +97,7 @@ class MercadoPagoPayment {
                     "first_name" => "Usuario",
                     "last_name" => "FutBanner"
                 ],
-                "date_of_expiration" => (new DateTime())->modify('+1 day')->format('c')
+                "date_of_expiration" => date('Y-m-d\TH:i:s.000P', strtotime('+1 day'))
             ];
             
             $ch = curl_init();
@@ -150,11 +150,8 @@ class MercadoPagoPayment {
             $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? '';
             $qrCode = $payment['point_of_interaction']['transaction_data']['qr_code'] ?? '';
             
-            // Log para debug
-            error_log("MercadoPagoPayment: QR code retrieval response - HTTP Code: {$httpCode}, Response: {$response}");
-            
             if (empty($qrCodeBase64) || empty($qrCode)) {
-                error_log("MercadoPagoPayment: Failed to retrieve QR code or invalid response. QR HTTP Code: {$httpCode}, QR Data: " . print_r($payment, true));
+                error_log("MercadoPagoPayment: Failed to retrieve QR code or invalid response. QR Data: " . print_r($payment, true));
                 return [
                     'success' => false,
                     'message' => 'Erro ao obter QR Code do Mercado Pago'
