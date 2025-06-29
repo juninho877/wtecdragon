@@ -9,7 +9,15 @@ require_once 'classes/User.php';
 
 $user = new User();
 $masterId = $_SESSION['user_id'];
-$users = $user->getUsersByParentId($masterId);
+
+// Processar filtros
+$filters = [
+    'search' => isset($_GET['search']) ? trim($_GET['search']) : '',
+    'status' => isset($_GET['status']) ? $_GET['status'] : 'all'
+];
+
+// Obter usuários filtrados
+$users = $user->getUsersByParentId($masterId, $filters);
 $masterCredits = $user->getUserCredits($masterId);
 
 // Processar ações AJAX
@@ -93,6 +101,46 @@ include "includes/header.php";
     </div>
 </div>
 
+<!-- Filter Form -->
+<div class="card mb-6">
+    <div class="card-header">
+        <h3 class="card-title">Filtrar Usuários</h3>
+        <p class="card-subtitle">Refine a lista de usuários</p>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+                <label for="search" class="form-label">Buscar por Nome/Email</label>
+                <input type="text" id="search" name="search" class="form-input" 
+                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
+                       placeholder="Digite o nome ou email">
+            </div>
+            
+            <div class="form-group">
+                <label for="status" class="form-label">Status</label>
+                <select id="status" name="status" class="form-input form-select">
+                    <option value="all" <?php echo $filters['status'] === 'all' ? 'selected' : ''; ?>>Todos os status</option>
+                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Ativo</option>
+                    <option value="inactive" <?php echo $filters['status'] === 'inactive' ? 'selected' : ''; ?>>Inativo</option>
+                    <option value="expired" <?php echo $filters['status'] === 'expired' ? 'selected' : ''; ?>>Expirado</option>
+                </select>
+            </div>
+            
+            <div class="form-actions md:col-span-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                    Filtrar
+                </button>
+                
+                <a href="master_users.php" class="btn btn-secondary">
+                    <i class="fas fa-times"></i>
+                    Limpar Filtros
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Actions Bar -->
 <div class="flex justify-between items-center mb-6">
     <div class="flex gap-3">
@@ -157,7 +205,10 @@ include "includes/header.php";
                             <td colspan="7" class="text-center py-4 text-muted">Nenhum usuário encontrado</td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($users as $userData): ?>
+                        <?php foreach ($users as $userData): 
+                            // Verificar se o usuário está expirado
+                            $isExpired = $userData['expires_at'] && strtotime($userData['expires_at']) < time();
+                        ?>
                             <tr data-user-id="<?php echo $userData['id']; ?>">
                                 <td><?php echo $userData['id']; ?></td>
                                 <td>
@@ -170,9 +221,13 @@ include "includes/header.php";
                                 </td>
                                 <td><?php echo htmlspecialchars($userData['email'] ?? '-'); ?></td>
                                 <td>
-                                    <span class="status-badge status-<?php echo $userData['status']; ?>">
-                                        <?php echo $userData['status'] === 'active' ? 'Ativo' : 'Inativo'; ?>
-                                    </span>
+                                    <?php if ($isExpired): ?>
+                                        <span class="status-badge status-expired">Expirado</span>
+                                    <?php else: ?>
+                                        <span class="status-badge status-<?php echo $userData['status']; ?>">
+                                            <?php echo $userData['status'] === 'active' ? 'Ativo' : 'Inativo'; ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php 
@@ -295,6 +350,11 @@ include "includes/header.php";
         background: var(--danger-50);
         color: var(--danger-600);
     }
+    
+    .status-expired {
+        background: var(--warning-50);
+        color: var(--warning-600);
+    }
 
     .action-buttons {
         display: flex;
@@ -349,6 +409,15 @@ include "includes/header.php";
     .btn-danger:hover {
         background: var(--danger-100);
     }
+    
+    .btn-primary {
+        background: var(--primary-50);
+        color: var(--primary-600);
+    }
+    
+    .btn-primary:hover {
+        background: var(--primary-100);
+    }
 
     .credit-info {
         padding: 1rem;
@@ -363,6 +432,12 @@ include "includes/header.php";
     .bg-info-50 {
         background-color: var(--info-50);
     }
+    
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
 
     /* Dark theme adjustments */
     [data-theme="dark"] .status-active {
@@ -373,6 +448,16 @@ include "includes/header.php";
     [data-theme="dark"] .status-inactive {
         background: rgba(239, 68, 68, 0.1);
         color: var(--danger-400);
+    }
+    
+    [data-theme="dark"] .status-expired {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-400);
+    }
+    
+    [data-theme="dark"] .btn-primary {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--primary-400);
     }
 </style>
 

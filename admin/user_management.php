@@ -10,7 +10,16 @@ require_once 'classes/CreditTransaction.php';
 
 $user = new User();
 $creditTransaction = new CreditTransaction();
-$users = $user->getAllUsers();
+
+// Processar filtros
+$filters = [
+    'search' => isset($_GET['search']) ? trim($_GET['search']) : '',
+    'role' => isset($_GET['role']) ? $_GET['role'] : 'all',
+    'status' => isset($_GET['status']) ? $_GET['status'] : 'all'
+];
+
+// Obter usuários filtrados
+$users = $user->getAllUsers($filters);
 $stats = $user->getUserStats();
 
 // Processar ações AJAX
@@ -123,6 +132,56 @@ include "includes/header.php";
     </div>
 </div>
 
+<!-- Filter Form -->
+<div class="card mb-6">
+    <div class="card-header">
+        <h3 class="card-title">Filtrar Usuários</h3>
+        <p class="card-subtitle">Refine a lista de usuários</p>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="form-group">
+                <label for="search" class="form-label">Buscar por Nome/Email</label>
+                <input type="text" id="search" name="search" class="form-input" 
+                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
+                       placeholder="Digite o nome ou email">
+            </div>
+            
+            <div class="form-group">
+                <label for="role" class="form-label">Função</label>
+                <select id="role" name="role" class="form-input form-select">
+                    <option value="all" <?php echo $filters['role'] === 'all' ? 'selected' : ''; ?>>Todas as funções</option>
+                    <option value="admin" <?php echo $filters['role'] === 'admin' ? 'selected' : ''; ?>>Administrador</option>
+                    <option value="master" <?php echo $filters['role'] === 'master' ? 'selected' : ''; ?>>Master</option>
+                    <option value="user" <?php echo $filters['role'] === 'user' ? 'selected' : ''; ?>>Usuário</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="status" class="form-label">Status</label>
+                <select id="status" name="status" class="form-input form-select">
+                    <option value="all" <?php echo $filters['status'] === 'all' ? 'selected' : ''; ?>>Todos os status</option>
+                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Ativo</option>
+                    <option value="inactive" <?php echo $filters['status'] === 'inactive' ? 'selected' : ''; ?>>Inativo</option>
+                    <option value="expired" <?php echo $filters['status'] === 'expired' ? 'selected' : ''; ?>>Expirado</option>
+                </select>
+            </div>
+            
+            <div class="form-actions md:col-span-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                    Filtrar
+                </button>
+                
+                <a href="user_management.php" class="btn btn-secondary">
+                    <i class="fas fa-times"></i>
+                    Limpar Filtros
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Actions Bar -->
 <div class="flex justify-between items-center mb-6">
     <div class="flex gap-3">
@@ -160,107 +219,120 @@ include "includes/header.php";
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($users as $userData): ?>
-                        <tr data-user-id="<?php echo $userData['id']; ?>">
-                            <td><?php echo $userData['id']; ?></td>
-                            <td>
-                                <div class="user-info">
-                                    <div class="user-avatar-small">
-                                        <?php echo strtoupper(substr($userData['username'], 0, 2)); ?>
+                    <?php if (empty($users)): ?>
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">Nenhum usuário encontrado</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($users as $userData): 
+                            // Verificar se o usuário está expirado
+                            $isExpired = $userData['expires_at'] && strtotime($userData['expires_at']) < time();
+                        ?>
+                            <tr data-user-id="<?php echo $userData['id']; ?>">
+                                <td><?php echo $userData['id']; ?></td>
+                                <td>
+                                    <div class="user-info">
+                                        <div class="user-avatar-small">
+                                            <?php echo strtoupper(substr($userData['username'], 0, 2)); ?>
+                                        </div>
+                                        <span class="font-medium"><?php echo htmlspecialchars($userData['username']); ?></span>
                                     </div>
-                                    <span class="font-medium"><?php echo htmlspecialchars($userData['username']); ?></span>
-                                </div>
-                            </td>
-                            <td><?php echo htmlspecialchars($userData['email'] ?? '-'); ?></td>
-                            <td>
-                                <span class="role-badge role-<?php echo $userData['role']; ?>">
+                                </td>
+                                <td><?php echo htmlspecialchars($userData['email'] ?? '-'); ?></td>
+                                <td>
+                                    <span class="role-badge role-<?php echo $userData['role']; ?>">
+                                        <?php 
+                                        switch ($userData['role']) {
+                                            case 'admin':
+                                                echo 'Administrador';
+                                                break;
+                                            case 'master':
+                                                echo 'Master';
+                                                break;
+                                            default:
+                                                echo 'Usuário';
+                                        }
+                                        ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if ($isExpired): ?>
+                                        <span class="status-badge status-expired">Expirado</span>
+                                    <?php else: ?>
+                                        <span class="status-badge status-<?php echo $userData['status']; ?>">
+                                            <?php echo $userData['status'] === 'active' ? 'Ativo' : 'Inativo'; ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
                                     <?php 
-                                    switch ($userData['role']) {
-                                        case 'admin':
-                                            echo 'Administrador';
-                                            break;
-                                        case 'master':
-                                            echo 'Master';
-                                            break;
-                                        default:
-                                            echo 'Usuário';
+                                    if ($userData['expires_at']) {
+                                        $expiresAt = new DateTime($userData['expires_at']);
+                                        $now = new DateTime();
+                                        $isExpired = $expiresAt < $now;
+                                        echo '<span class="' . ($isExpired ? 'text-danger-500' : 'text-muted') . '">';
+                                        echo $expiresAt->format('d/m/Y');
+                                        echo '</span>';
+                                    } else {
+                                        echo '<span class="text-muted">Nunca</span>';
                                     }
                                     ?>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="status-badge status-<?php echo $userData['status']; ?>">
-                                    <?php echo $userData['status'] === 'active' ? 'Ativo' : 'Inativo'; ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php 
-                                if ($userData['expires_at']) {
-                                    $expiresAt = new DateTime($userData['expires_at']);
-                                    $now = new DateTime();
-                                    $isExpired = $expiresAt < $now;
-                                    echo '<span class="' . ($isExpired ? 'text-danger-500' : 'text-muted') . '">';
-                                    echo $expiresAt->format('d/m/Y');
-                                    echo '</span>';
-                                } else {
-                                    echo '<span class="text-muted">Nunca</span>';
-                                }
-                                ?>
-                            </td>
-                            <td>
-                                <?php if ($userData['role'] === 'master'): ?>
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-medium"><?php echo $userData['credits']; ?></span>
-                                        <button class="btn-action btn-primary add-credits" data-user-id="<?php echo $userData['id']; ?>" title="Adicionar Créditos">
-                                            <i class="fas fa-plus-circle"></i>
-                                        </button>
-                                        <a href="user_credit_history.php?id=<?php echo $userData['id']; ?>" class="btn-action btn-secondary" title="Ver Histórico">
-                                            <i class="fas fa-history"></i>
-                                        </a>
-                                    </div>
-                                <?php else: ?>
-                                    <span class="text-muted">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php 
-                                if ($userData['last_login']) {
-                                    $lastLogin = new DateTime($userData['last_login']);
-                                    echo $lastLogin->format('d/m/Y H:i');
-                                } else {
-                                    echo '<span class="text-muted">Nunca</span>';
-                                }
-                                ?>
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="edit_user.php?id=<?php echo $userData['id']; ?>" class="btn-action btn-edit" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    
-                                    <button class="btn-action btn-primary renew-user-admin" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>" title="Renovar">
-                                        <i class="fas fa-sync-alt"></i>
-                                    </button>
-                                    
-                                    <?php if ($userData['status'] === 'active'): ?>
-                                        <button class="btn-action btn-warning toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="inactive" title="Desativar">
-                                            <i class="fas fa-user-times"></i>
-                                        </button>
+                                </td>
+                                <td>
+                                    <?php if ($userData['role'] === 'master'): ?>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium"><?php echo $userData['credits']; ?></span>
+                                            <button class="btn-action btn-primary add-credits" data-user-id="<?php echo $userData['id']; ?>" title="Adicionar Créditos">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </button>
+                                            <a href="user_credit_history.php?id=<?php echo $userData['id']; ?>" class="btn-action btn-secondary" title="Ver Histórico">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                        </div>
                                     <?php else: ?>
-                                        <button class="btn-action btn-success toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="active" title="Ativar">
-                                            <i class="fas fa-user-check"></i>
-                                        </button>
+                                        <span class="text-muted">-</span>
                                     <?php endif; ?>
-                                    
-                                    <?php if ($userData['id'] != $_SESSION['user_id']): ?>
-                                        <button class="btn-action btn-danger delete-user" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>" title="Excluir">
-                                            <i class="fas fa-trash"></i>
+                                </td>
+                                <td>
+                                    <?php 
+                                    if ($userData['last_login']) {
+                                        $lastLogin = new DateTime($userData['last_login']);
+                                        echo $lastLogin->format('d/m/Y H:i');
+                                    } else {
+                                        echo '<span class="text-muted">Nunca</span>';
+                                    }
+                                    ?>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <a href="edit_user.php?id=<?php echo $userData['id']; ?>" class="btn-action btn-edit" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        
+                                        <button class="btn-action btn-primary renew-user-admin" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>" title="Renovar">
+                                            <i class="fas fa-sync-alt"></i>
                                         </button>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
+                                        
+                                        <?php if ($userData['status'] === 'active'): ?>
+                                            <button class="btn-action btn-warning toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="inactive" title="Desativar">
+                                                <i class="fas fa-user-times"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="btn-action btn-success toggle-status" data-user-id="<?php echo $userData['id']; ?>" data-status="active" title="Ativar">
+                                                <i class="fas fa-user-check"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                        
+                                        <?php if ($userData['id'] != $_SESSION['user_id']): ?>
+                                            <button class="btn-action btn-danger delete-user" data-user-id="<?php echo $userData['id']; ?>" data-username="<?php echo htmlspecialchars($userData['username']); ?>" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -346,6 +418,11 @@ include "includes/header.php";
         background: var(--danger-50);
         color: var(--danger-600);
     }
+    
+    .status-expired {
+        background: var(--warning-50);
+        color: var(--warning-600);
+    }
 
     .action-buttons {
         display: flex;
@@ -400,6 +477,31 @@ include "includes/header.php";
     .btn-danger:hover {
         background: var(--danger-100);
     }
+    
+    .btn-primary {
+        background: var(--primary-50);
+        color: var(--primary-600);
+    }
+    
+    .btn-primary:hover {
+        background: var(--primary-100);
+    }
+    
+    .btn-secondary {
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+    }
+    
+    .btn-secondary:hover {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
 
     /* Dark theme adjustments */
     [data-theme="dark"] .role-admin {
@@ -425,6 +527,21 @@ include "includes/header.php";
     [data-theme="dark"] .status-inactive {
         background: rgba(239, 68, 68, 0.1);
         color: var(--danger-400);
+    }
+    
+    [data-theme="dark"] .status-expired {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-400);
+    }
+    
+    [data-theme="dark"] .btn-primary {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--primary-400);
+    }
+    
+    [data-theme="dark"] .btn-secondary {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
     }
 </style>
 

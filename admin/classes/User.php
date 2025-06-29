@@ -43,14 +43,44 @@ class User {
         $stmt->execute([$userId]);
     }
     
-    // Listar todos os usuários
-    public function getAllUsers() {
-        $stmt = $this->db->prepare("
+    // Listar todos os usuários com filtros
+    public function getAllUsers($filters = []) {
+        $sql = "
             SELECT id, username, email, role, status, expires_at, credits, parent_user_id, created_at, last_login 
             FROM usuarios 
-            ORDER BY created_at DESC
-        ");
-        $stmt->execute();
+            WHERE 1=1
+        ";
+        
+        $params = [];
+        
+        // Filtro por nome de usuário ou email
+        if (!empty($filters['search'])) {
+            $sql .= " AND (username LIKE ? OR email LIKE ?)";
+            $searchTerm = '%' . $filters['search'] . '%';
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+        
+        // Filtro por role
+        if (!empty($filters['role']) && $filters['role'] !== 'all') {
+            $sql .= " AND role = ?";
+            $params[] = $filters['role'];
+        }
+        
+        // Filtro por status
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'expired') {
+                $sql .= " AND expires_at IS NOT NULL AND expires_at < CURDATE()";
+            } elseif ($filters['status'] !== 'all') {
+                $sql .= " AND status = ?";
+                $params[] = $filters['status'];
+            }
+        }
+        
+        $sql .= " ORDER BY created_at DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
     
@@ -280,7 +310,8 @@ class User {
                 SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
                 SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
                 SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins,
-                SUM(CASE WHEN role = 'master' THEN 1 ELSE 0 END) as masters
+                SUM(CASE WHEN role = 'master' THEN 1 ELSE 0 END) as masters,
+                SUM(CASE WHEN expires_at IS NOT NULL AND expires_at < CURDATE() THEN 1 ELSE 0 END) as expired
             FROM usuarios
         ");
         $stmt->execute();
@@ -367,16 +398,39 @@ class User {
         }
     }
     
-    // Obter usuários criados por um master
-    public function getUsersByParentId($parentId) {
+    // Obter usuários criados por um master com filtros
+    public function getUsersByParentId($parentId, $filters = []) {
+        $sql = "
+            SELECT id, username, email, role, status, expires_at, created_at, last_login 
+            FROM usuarios 
+            WHERE parent_user_id = ?
+        ";
+        
+        $params = [$parentId];
+        
+        // Filtro por nome de usuário ou email
+        if (!empty($filters['search'])) {
+            $sql .= " AND (username LIKE ? OR email LIKE ?)";
+            $searchTerm = '%' . $filters['search'] . '%';
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+        
+        // Filtro por status
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'expired') {
+                $sql .= " AND expires_at IS NOT NULL AND expires_at < CURDATE()";
+            } elseif ($filters['status'] !== 'all') {
+                $sql .= " AND status = ?";
+                $params[] = $filters['status'];
+            }
+        }
+        
+        $sql .= " ORDER BY created_at DESC";
+        
         try {
-            $stmt = $this->db->prepare("
-                SELECT id, username, email, role, status, expires_at, created_at, last_login 
-                FROM usuarios 
-                WHERE parent_user_id = ?
-                ORDER BY created_at DESC
-            ");
-            $stmt->execute([$parentId]);
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
             return $stmt->fetchAll();
         } catch (PDOException $e) {
             error_log("Erro ao obter usuários do master: " . $e->getMessage());
