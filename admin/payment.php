@@ -92,6 +92,34 @@ if ($paymentCreatedAt && (time() - $paymentCreatedAt > 1800)) { // 30 minutos em
 }
 error_log("Payment.php - QR Code Expired: " . ($qrCodeExpired ? 'Yes' : 'No'));
 
+// Automatically generate payment for expired users
+if (($isExpired || $isExpiredRedirect) && !$paymentInProgress && !isset($successMessage)) {
+    error_log("Payment.php - Auto-generating payment for expired user ID: $userId");
+    
+    // Simulate form submission for 1-month subscription
+    $_POST['action'] = 'create_payment';
+    $_POST['amount'] = $price1Month;
+    $_POST['months'] = 1;
+    
+    // Create payment
+    $result = $mercadoPago->createSubscriptionPayment($userId, $price1Month, 1);
+    error_log("Payment.php - Auto-generated payment result: " . print_r($result, true));
+    
+    if ($result['success']) {
+        $_SESSION['payment_qr_code'] = $result['qr_code'];
+        $_SESSION['payment_id'] = $result['payment_id'];
+        $_SESSION['payment_created_at'] = time();
+        $_SESSION['payment_months'] = 1;
+        $_SESSION['payment_amount'] = $price1Month;
+        
+        $paymentInProgress = true;
+        error_log("Payment.php - Auto-generated payment successful, QR code stored in session");
+    } else {
+        $errorMessage = $result['message'];
+        error_log("Payment.php - Error auto-generating payment: " . $errorMessage);
+    }
+}
+
 // Processar solicitação de pagamento
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'create_payment') {
