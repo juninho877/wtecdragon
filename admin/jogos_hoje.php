@@ -258,10 +258,16 @@ include "includes/header.php";
                     $placar2 = $jogo['placar_time2'] ?? '';
                     $temPlacar = !empty($placar1) || !empty($placar2);
                     $status = getGameStatus($jogo);
+                    $liga_img = $jogo['img_competicao_url'] ?? '';
                 ?>
                     <div class="game-card-detailed">
                         <div class="game-header-detailed">
                             <div class="league-info">
+                                <?php if (!empty($liga_img)): ?>
+                                <div class="league-logo">
+                                    <img src="<?php echo htmlspecialchars($liga_img); ?>" alt="<?php echo htmlspecialchars($liga); ?>" loading="lazy">
+                                </div>
+                                <?php endif; ?>
                                 <span class="league-name-detailed"><?php echo htmlspecialchars($liga); ?></span>
                                 <span class="game-status <?php echo $status['class']; ?>">
                                     <i class="fas <?php echo $status['icon']; ?>"></i>
@@ -273,6 +279,11 @@ include "includes/header.php";
                         
                         <div class="game-teams-detailed">
                             <div class="team-detailed">
+                                <?php if (!empty($jogo['img_time1_url'])): ?>
+                                <div class="team-logo">
+                                    <img src="<?php echo htmlspecialchars($jogo['img_time1_url']); ?>" alt="<?php echo htmlspecialchars($time1); ?>" loading="lazy">
+                                </div>
+                                <?php endif; ?>
                                 <span class="team-name-detailed"><?php echo htmlspecialchars($time1); ?></span>
                                 <?php if ($temPlacar): ?>
                                     <span class="team-score"><?php echo htmlspecialchars($placar1 ?: '0'); ?></span>
@@ -288,6 +299,11 @@ include "includes/header.php";
                             </div>
                             
                             <div class="team-detailed">
+                                <?php if (!empty($jogo['img_time2_url'])): ?>
+                                <div class="team-logo">
+                                    <img src="<?php echo htmlspecialchars($jogo['img_time2_url']); ?>" alt="<?php echo htmlspecialchars($time2); ?>" loading="lazy">
+                                </div>
+                                <?php endif; ?>
                                 <span class="team-name-detailed"><?php echo htmlspecialchars($time2); ?></span>
                                 <?php if ($temPlacar): ?>
                                     <span class="team-score"><?php echo htmlspecialchars($placar2 ?: '0'); ?></span>
@@ -302,7 +318,12 @@ include "includes/header.php";
                                 $canaisLimitados = array_slice($canais, 0, 3);
                                 foreach ($canaisLimitados as $canal): 
                                 ?>
-                                    <span class="channel-badge"><?php echo htmlspecialchars($canal['nome'] ?? 'Canal'); ?></span>
+                                    <span class="channel-badge">
+                                        <?php if (!empty($canal['img_url'])): ?>
+                                        <img src="<?php echo htmlspecialchars($canal['img_url']); ?>" alt="<?php echo htmlspecialchars($canal['nome'] ?? 'Canal'); ?>" class="channel-logo">
+                                        <?php endif; ?>
+                                        <?php echo htmlspecialchars($canal['nome'] ?? 'Canal'); ?>
+                                    </span>
                                 <?php endforeach; ?>
                                 <?php if (count($canais) > 3): ?>
                                     <span class="channel-badge more">+<?php echo count($canais) - 3; ?></span>
@@ -376,6 +397,20 @@ include "includes/header.php";
     .league-info {
         flex: 1;
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .league-logo {
+        width: 24px;
+        height: 24px;
+        margin-bottom: 0.25rem;
+    }
+
+    .league-logo img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
     }
 
     .league-name-detailed {
@@ -472,6 +507,21 @@ include "includes/header.php";
         gap: 0.25rem;
     }
 
+    .team-logo {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .team-logo img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
     .team-name-detailed {
         font-size: 0.875rem;
         font-weight: 600;
@@ -532,6 +582,15 @@ include "includes/header.php";
         padding: 0.25rem 0.5rem;
         border-radius: 4px;
         border: 1px solid var(--success-200);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .channel-logo {
+        width: 16px;
+        height: 16px;
+        object-fit: contain;
     }
 
     .channel-badge.more {

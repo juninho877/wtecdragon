@@ -196,7 +196,7 @@ include "includes/header.php";
 
 <?php else: ?>
     <!-- Regular User Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <div class="grid-responsivo mb-6">
         <div class="card">
             <div class="card-body">
                 <div class="flex items-center justify-between">
@@ -359,27 +359,78 @@ include "includes/header.php";
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <?php 
             // Mostrar apenas os primeiros 8 jogos no dashboard (aumentado de 6 para 8)
-            $jogosLimitados = array_slice($jogos, 0, 6);
+            $jogosLimitados = array_slice($jogos, 0, 8);
             foreach ($jogosLimitados as $jogo): 
                 $time1 = $jogo['time1'] ?? 'Time 1';
                 $time2 = $jogo['time2'] ?? 'Time 2';
                 $liga = $jogo['competicao'] ?? 'Liga';
                 $hora = $jogo['horario'] ?? '';
+                $placar1 = $jogo['placar_time1'] ?? '';
+                $placar2 = $jogo['placar_time2'] ?? '';
+                $temPlacar = !empty($placar1) || !empty($placar2);
+                $status = !empty($jogo['status']) ? strtoupper($jogo['status']) : '';
+                $canais = array_slice($jogo['canais'] ?? [], 0, 2); // Limitar a 2 canais para o card
             ?>
-                <div class="game-card">
-                    <div class="game-header">
-                        <span class="league-name"><?php echo htmlspecialchars($liga); ?></span>
-                        <span class="game-time"><?php echo htmlspecialchars($hora); ?></span>
-                    </div>
-                    <div class="game-teams">
-                        <div class="team">
-                            <span class="team-name"><?php echo htmlspecialchars($time1); ?></span>
+                <div class="game-card-detailed">
+                    <div class="game-header-detailed">
+                        <div class="league-info">
+                            <span class="league-name-detailed"><?php echo htmlspecialchars($liga); ?></span>
+                            <?php if (!empty($status)): ?>
+                                <span class="game-status status-<?php echo strtolower($status); ?>">
+                                    <i class="fas <?php echo $status == 'AO_VIVO' || $status == 'LIVE' ? 'fa-circle live-pulse' : 'fa-info-circle'; ?>"></i>
+                                    <?php echo $status == 'AO_VIVO' ? 'AO VIVO' : $status; ?>
+                                </span>
+                            <?php endif; ?>
                         </div>
-                        <div class="vs">VS</div>
-                        <div class="team">
-                            <span class="team-name"><?php echo htmlspecialchars($time2); ?></span>
+                        <span class="game-time-detailed"><?php echo htmlspecialchars($hora); ?></span>
+                    </div>
+                    
+                    <div class="game-teams-detailed">
+                        <div class="team-detailed">
+                            <?php if (!empty($jogo['img_time1_url'])): ?>
+                                <div class="team-logo">
+                                    <img src="<?php echo htmlspecialchars($jogo['img_time1_url']); ?>" alt="<?php echo htmlspecialchars($time1); ?>" loading="lazy">
+                                </div>
+                            <?php endif; ?>
+                            <span class="team-name-detailed"><?php echo htmlspecialchars($time1); ?></span>
+                            <?php if ($temPlacar): ?>
+                                <span class="team-score"><?php echo htmlspecialchars($placar1 ?: '0'); ?></span>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="vs-detailed">
+                            <?php if ($temPlacar): ?>
+                                <span class="score-separator">×</span>
+                            <?php else: ?>
+                                VS
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="team-detailed">
+                            <?php if (!empty($jogo['img_time2_url'])): ?>
+                                <div class="team-logo">
+                                    <img src="<?php echo htmlspecialchars($jogo['img_time2_url']); ?>" alt="<?php echo htmlspecialchars($time2); ?>" loading="lazy">
+                                </div>
+                            <?php endif; ?>
+                            <span class="team-name-detailed"><?php echo htmlspecialchars($time2); ?></span>
+                            <?php if ($temPlacar): ?>
+                                <span class="team-score"><?php echo htmlspecialchars($placar2 ?: '0'); ?></span>
+                            <?php endif; ?>
                         </div>
                     </div>
+
+                    <?php if (!empty($canais)): ?>
+                    <div class="channels-info">
+                        <div class="channels-list">
+                            <?php foreach ($canais as $canal): ?>
+                                <span class="channel-badge"><?php echo htmlspecialchars($canal['nome'] ?? 'Canal'); ?></span>
+                            <?php endforeach; ?>
+                            <?php if (count($jogo['canais'] ?? []) > 2): ?>
+                                <span class="channel-badge more">+<?php echo count($jogo['canais']) - 2; ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -464,7 +515,7 @@ include "includes/header.php";
 </div>
 
 <style>
-	    .grid-responsivo {
+    .grid-responsivo {
         display: grid;
         gap: 1.5rem;
         grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -551,77 +602,223 @@ include "includes/header.php";
     }
 
     /* Estilos para os cards de jogos */
-    .game-card {
+    .game-card-detailed {
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
         border-radius: var(--border-radius-sm);
         padding: 1rem;
         transition: var(--transition);
+        position: relative;
+        overflow: hidden;
     }
 
-    .game-card:hover {
+    .game-card-detailed:hover {
         background: var(--bg-tertiary);
         transform: translateY(-2px);
         box-shadow: var(--shadow-md);
     }
 
-    .game-header {
+    .game-header-detailed {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid var(--border-color);
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        gap: 0.5rem;
     }
 
-    .league-name {
+    .league-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .league-name-detailed {
         font-size: 0.75rem;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--primary-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Status dos jogos */
+    .game-status {
+        font-size: 0.625rem;
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
         text-transform: uppercase;
         letter-spacing: 0.025em;
     }
 
-    .game-time {
-        font-size: 0.75rem;
-        font-weight: 500;
-        color: var(--text-muted);
-        background: var(--bg-primary);
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
+    .status-ao_vivo, .status-live {
+        color: var(--danger-600);
+        background: var(--danger-50);
+        border: 1px solid var(--danger-200);
+        animation: pulse 2s infinite;
     }
 
-    .game-teams {
+    .status-adiado, .status-postponed {
+        color: var(--warning-600);
+        background: var(--warning-50);
+        border: 1px solid var(--warning-200);
+    }
+
+    .status-cancelado, .status-cancelled {
+        color: var(--danger-600);
+        background: var(--danger-50);
+        border: 1px solid var(--danger-200);
+    }
+
+    .status-finalizado, .status-finished {
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+    }
+
+    .status-intervalo, .status-halftime {
+        color: var(--info-600);
+        background: var(--info-50);
+        border: 1px solid var(--info-200);
+    }
+
+    .game-time-detailed {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        background: var(--bg-primary);
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--border-radius-sm);
+        white-space: nowrap;
+    }
+
+    .game-teams-detailed {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 0.5rem;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
     }
 
-    .team {
+    .team-detailed {
         flex: 1;
         text-align: center;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
     }
 
-    .team-name {
+    .team-logo {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .team-logo img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .team-name-detailed {
         font-size: 0.875rem;
         font-weight: 600;
         color: var(--text-primary);
         display: block;
+        word-wrap: break-word;
+        line-height: 1.2;
     }
 
-    .vs {
+    .team-score {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--primary-600);
+        background: var(--primary-50);
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--border-radius-sm);
+        min-width: 2rem;
+        text-align: center;
+    }
+
+    .vs-detailed {
         font-size: 0.75rem;
         font-weight: 700;
         color: var(--text-muted);
         background: var(--bg-primary);
-        padding: 0.25rem 0.5rem;
+        padding: 0.375rem 0.75rem;
         border-radius: 50%;
-        min-width: 32px;
-        height: 32px;
+        min-width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
+        border: 2px solid var(--border-color);
+    }
+
+    .score-separator {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--primary-600);
+    }
+
+    .channels-info {
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .channels-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+    }
+
+    .channel-badge {
+        font-size: 0.625rem;
+        font-weight: 500;
+        color: var(--success-600);
+        background: var(--success-50);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid var(--success-200);
+    }
+
+    .channel-badge.more {
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
+        border-color: var(--border-color);
+    }
+
+    /* Animações */
+    .live-pulse {
+        animation: livePulse 2s infinite;
+    }
+
+    @keyframes livePulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.7;
+            transform: scale(1.1);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.7;
+        }
     }
 
     /* Utilitários */
@@ -645,7 +842,7 @@ include "includes/header.php";
         background-color: rgba(59, 130, 246, 0.1);
     }
 
-    [data-theme="dark"] .league-name {
+    [data-theme="dark"] .league-name-detailed {
         color: var(--primary-400);
     }
 
