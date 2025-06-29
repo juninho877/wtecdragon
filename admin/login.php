@@ -28,6 +28,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             header("Location: index.php");
             exit();
         } else {
+            // Verificar se a conta está expirada
+            if ($result['message'] === 'Conta expirada') {
+                // Buscar o usuário pelo nome de usuário para obter o ID
+                $stmt = $db->getConnection()->prepare("SELECT id FROM usuarios WHERE username = ?");
+                $stmt->execute([$username]);
+                $userId = $stmt->fetchColumn();
+                
+                if ($userId) {
+                    // Armazenar o ID do usuário na sessão temporariamente para o pagamento
+                    $_SESSION["temp_user_id"] = $userId;
+                    $_SESSION["temp_username"] = $username;
+                    
+                    // Redirecionar para a página de pagamento com parâmetro de conta expirada
+                    header("Location: payment.php?expired=true");
+                    exit();
+                }
+            }
             $erro = $result['message'];
         }
     } catch (Exception $e) {

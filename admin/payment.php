@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION["usuario"])) {
+if (!isset($_SESSION["usuario"]) && !isset($_SESSION["temp_user_id"])) {
     header("Location: login.php");
     exit();
 }
@@ -13,8 +13,17 @@ $user = new User();
 $mercadoPago = new MercadoPago();
 $mercadoPagoSettings = new MercadoPagoSettings();
 
-$userId = $_SESSION['user_id'];
+// Determinar o ID do usuário (usuário logado ou usuário temporário com conta expirada)
+$userId = isset($_SESSION["user_id"]) ? $_SESSION["user_id"] : (isset($_SESSION["temp_user_id"]) ? $_SESSION["temp_user_id"] : null);
 $userData = $user->getUserById($userId);
+
+// Verificar se a conta está expirada
+$isExpired = false;
+$isExpiredRedirect = isset($_GET['expired']) && $_GET['expired'] === 'true';
+
+if ($userData['expires_at'] && strtotime($userData['expires_at']) < time()) {
+    $isExpired = true;
+}
 
 // Buscar configurações do admin (ID 1)
 $adminSettings = $mercadoPagoSettings->getSettings(1);
@@ -29,12 +38,6 @@ $price1Month = $basePrice;
 $price3Months = ($basePrice * 3) * (1 - ($discount3Months / 100));
 $price6Months = ($basePrice * 6) * (1 - ($discount6Months / 100));
 $price12Months = ($basePrice * 12) * (1 - ($discount12Months / 100));
-
-// Verificar se o usuário está expirado
-$isExpired = false;
-if ($userData['expires_at'] && strtotime($userData['expires_at']) < time()) {
-    $isExpired = true;
-}
 
 // Verificar se há um pagamento em andamento
 $paymentInProgress = isset($_SESSION['payment_qr_code']) && !empty($_SESSION['payment_qr_code']);
@@ -71,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['payment_amount'] = $totalAmount;
             
             // Redirecionar para evitar reenvio do formulário
-            header('Location: payment.php');
+            header('Location: payment.php' . ($isExpiredRedirect ? '?expired=true' : ''));
             exit;
         } else {
             $errorMessage = $result['message'];
@@ -85,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         unset($_SESSION['payment_amount']);
         
         // Redirecionar para evitar reenvio do formulário
-        header('Location: payment.php');
+        header('Location: payment.php' . ($isExpiredRedirect ? '?expired=true' : ''));
         exit;
     }
 }
@@ -96,6 +99,19 @@ if (isset($_SESSION['payment_success']) && $_SESSION['payment_success']) {
     $successMessage = $_SESSION['payment_message'] ?? "Pagamento confirmado com sucesso!";
     unset($_SESSION['payment_success']);
     unset($_SESSION['payment_message']);
+    
+    // Se o pagamento foi bem-sucedido e era um usuário com conta expirada, redirecionar para login
+    if (isset($_SESSION["temp_user_id"])) {
+        // Limpar dados temporários
+        unset($_SESSION["temp_user_id"]);
+        unset($_SESSION["temp_username"]);
+        
+        // Redirecionar para login com mensagem de sucesso
+        $_SESSION['login_success'] = true;
+        $_SESSION['login_message'] = "Sua assinatura foi renovada com sucesso! Faça login para continuar.";
+        header("Location: login.php");
+        exit();
+    }
 }
 
 $pageTitle = "Pagamento";
@@ -112,7 +128,7 @@ include "includes/header.php";
     </p>
 </div>
 
-<?php if ($isExpired): ?>
+<?php if ($isExpired || $isExpiredRedirect): ?>
 <div class="alert alert-warning mb-6">
     <i class="fas fa-exclamation-triangle"></i>
     <div>
@@ -236,6 +252,9 @@ include "includes/header.php";
                             </button>
                             <form method="post" action="">
                                 <input type="hidden" name="action" value="cancel_payment">
+                                <?php if ($isExpiredRedirect): ?>
+                                <input type="hidden" name="expired" value="true">
+                                <?php endif; ?>
                                 <button type="submit" class="btn btn-secondary">
                                     <i class="fas fa-times"></i>
                                     Cancelar
@@ -925,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
                         }).then(() => {
                             // Redirecionar para atualizar a página
-                            window.location.href = 'payment.php?success=1';
+                            window.location.href = 'payment.php?success=1<?php echo $isExpiredRedirect ? '&expired=true' : ''; ?>';
                         });
                         
                         // Armazenar mensagem de sucesso na sessão via AJAX
@@ -965,7 +984,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             color: document.body.getAttribute('data-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
                         }).then(() => {
                             // Redirecionar para atualizar a página
-                            window.location.href = 'payment.php';
+                            window.location.href = 'payment.php<?php echo $isExpiredRedirect ? '?expired=true' : ''; ?>';
                         });
                     } else {
                         // Outro status
@@ -1048,12 +1067,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: `message=${encodeURIComponent(data.message)}`
                     }).then(() => {
-                        window.location.href = 'payment.php?success=1';
+                        window.location.href = 'payment.php?success=1<?php echo $isExpiredRedirect ? '&expired=true' : ''; ?>';
                     });
                 } else if (data.status === 'rejected' || data.status === 'cancelled') {
                     // Pagamento rejeitado - redirecionar
                     clearInterval(checkPaymentInterval);
-                    window.location.href = 'payment.php';
+                    window.location.href = 'payment.php<?php echo $isExpiredRedirect ? '?expired=true' : ''; ?>';
                 }
                 // Se for pending, não faz nada e continua verificando
             }
