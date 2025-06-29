@@ -327,7 +327,7 @@ include "includes/header.php";
             <div class="card-body">
                 <div class="faq-list">
                     <div class="faq-item">
-                        <div class="faq-question" onclick="toggleFaq(this)">
+                        <div class="faq-question" id="faq-question-1">
                             <span>Como funcionam os créditos?</span>
                             <i class="fas fa-chevron-down"></i>
                         </div>
@@ -336,7 +336,7 @@ include "includes/header.php";
                         </div>
                     </div>
                     <div class="faq-item">
-                        <div class="faq-question" onclick="toggleFaq(this)">
+                        <div class="faq-question" id="faq-question-2">
                             <span>Quanto tempo leva para confirmar o pagamento?</span>
                             <i class="fas fa-chevron-down"></i>
                         </div>
@@ -345,7 +345,7 @@ include "includes/header.php";
                         </div>
                     </div>
                     <div class="faq-item">
-                        <div class="faq-question" onclick="toggleFaq(this)">
+                        <div class="faq-question" id="faq-question-3">
                             <span>Os créditos expiram?</span>
                             <i class="fas fa-chevron-down"></i>
                         </div>
@@ -392,6 +392,18 @@ include "includes/header.php";
         background: var(--danger-50);
         color: var(--danger-600);
         border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    
+    .alert-info {
+        background: var(--primary-50);
+        color: var(--primary-600);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    
+    .alert-warning {
+        background: var(--warning-50);
+        color: var(--warning-600);
+        border: 1px solid rgba(245, 158, 11, 0.2);
     }
     
     .credit-info-large {
@@ -705,6 +717,16 @@ include "includes/header.php";
         color: var(--danger-400);
     }
     
+    [data-theme="dark"] .alert-info {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--primary-400);
+    }
+    
+    [data-theme="dark"] .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-400);
+    }
+    
     [data-theme="dark"] .credit-btn:hover, 
     [data-theme="dark"] .credit-btn.active {
         background: rgba(59, 130, 246, 0.1);
@@ -770,21 +792,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    creditsInput.addEventListener('input', updateTotal);
+    if (creditsInput) {
+        creditsInput.addEventListener('input', updateTotal);
+        
+        // Inicializar valores
+        updateTotal();
+    }
     
-    // Inicializar valores
-    updateTotal();
-    
-    // Toggle FAQ
+    // Toggle FAQ function
     window.toggleFaq = function(element) {
         const faqItem = element.parentElement;
         faqItem.classList.toggle('active');
     };
     
+    // Add click event listeners to FAQ questions
+    const faqQuestions = document.querySelectorAll('.faq-question');
+    faqQuestions.forEach(question => {
+        question.addEventListener('click', function() {
+            const faqItem = this.parentElement;
+            faqItem.classList.toggle('active');
+        });
+    });
+    
     // Verificar pagamento via AJAX
     const checkPaymentBtn = document.getElementById('check-payment-btn');
     if (checkPaymentBtn) {
+        console.log('Check payment button found');
         checkPaymentBtn.addEventListener('click', function() {
+            console.log('Check payment button clicked');
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
             
@@ -800,6 +835,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Payment check response:', data);
                 if (data.success) {
                     if (data.status === 'approved') {
                         // Pagamento aprovado
@@ -907,11 +943,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.innerHTML = '<i class="fas fa-sync-alt"></i> Verificar Pagamento';
             });
         });
+    } else {
+        console.log('Check payment button not found');
     }
     
     // Auto-refresh para verificar pagamento a cada 30 segundos
     <?php if ($paymentInProgress && !$qrCodeExpired): ?>
+    console.log('Setting up payment check interval');
     const checkPaymentInterval = setInterval(function() {
+        console.log('Auto-checking payment status');
         // Fazer verificação via AJAX em vez de submeter o formulário
         fetch('check_credit_payment.php', {
             method: 'POST',
@@ -922,10 +962,12 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Auto-check response:', data);
             if (data.success) {
                 if (data.status === 'approved') {
                     // Pagamento aprovado - redirecionar
                     clearInterval(checkPaymentInterval);
+                    console.log('Payment approved, redirecting');
                     
                     // Armazenar mensagem de sucesso na sessão via AJAX
                     fetch('store_credit_payment_success.php', {
@@ -940,18 +982,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (data.status === 'rejected' || data.status === 'cancelled') {
                     // Pagamento rejeitado - redirecionar
                     clearInterval(checkPaymentInterval);
+                    console.log('Payment rejected or cancelled, redirecting');
                     window.location.href = 'buy_credits.php';
                 }
                 // Se for pending, não faz nada e continua verificando
             }
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('Error in auto-check:', error);
         });
     }, 30000); // Verificar a cada 30 segundos
     
     // Limpar intervalo quando a página for fechada
     window.addEventListener('beforeunload', function() {
+        console.log('Clearing payment check interval');
         clearInterval(checkPaymentInterval);
     });
     <?php endif; ?>
