@@ -101,6 +101,8 @@ if (($isExpired || $isExpiredRedirect) && !$paymentInProgress && !isset($success
     $_POST['amount'] = $price1Month;
     $_POST['months'] = 1;
     
+    error_log("Payment.php - About to call createSubscriptionPayment with userId: $userId, price1Month: $price1Month, months: 1");
+    
     // Create payment
     $result = $mercadoPago->createSubscriptionPayment($userId, $price1Month, 1);
     error_log("Payment.php - Auto-generated payment result: " . print_r($result, true));
