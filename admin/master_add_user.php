@@ -28,6 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($data['username'])) {
         $message = 'Nome de usuário é obrigatório';
         $messageType = 'error';
+    } elseif (empty($data['email'])) {
+        $message = 'Email é obrigatório';
+        $messageType = 'error';
     } elseif (strlen($data['password']) < 6) {
         $message = 'A senha deve ter pelo menos 6 caracteres';
         $messageType = 'error';
@@ -100,13 +103,13 @@ include "includes/header.php";
                         </div>
 
                         <div class="form-group">
-                            <label for="email" class="form-label">
+                            <label for="email" class="form-label required">
                                 <i class="fas fa-envelope mr-2"></i>
                                 Email
                             </label>
                             <input type="email" id="email" name="email" class="form-input" 
                                    value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" 
-                                   placeholder="Digite o email (opcional)" <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
+                                   placeholder="Digite o email" required <?php echo $masterCredits < 1 ? 'disabled' : ''; ?>>
                         </div>
                     </div>
 

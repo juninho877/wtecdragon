@@ -54,6 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($data['username'])) {
             $message = 'Nome de usuário é obrigatório';
             $messageType = 'error';
+        } elseif (empty($data['email'])) {
+            $message = 'Email é obrigatório';
+            $messageType = 'error';
         } else {
             $result = $userClass->updateUser($userId, $data);
             $message = $result['message'];
@@ -108,13 +111,13 @@ include "includes/header.php";
                         </div>
 
                         <div class="form-group">
-                            <label for="email" class="form-label">
+                            <label for="email" class="form-label required">
                                 <i class="fas fa-envelope mr-2"></i>
                                 Email
                             </label>
                             <input type="email" id="email" name="email" class="form-input" 
                                    value="<?php echo htmlspecialchars($_POST['email'] ?? $userData['email'] ?? ''); ?>" 
-                                   placeholder="Digite o email (opcional)">
+                                   placeholder="Digite o email" required>
                         </div>
                     </div>
 
