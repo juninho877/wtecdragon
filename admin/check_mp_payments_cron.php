@@ -7,8 +7,8 @@
  * e renovar o acesso dos usuários quando o pagamento for aprovado.
  * 
  * Configuração de Cron (exemplo para execução a cada 5 minutos):
- * // */5 * * * * /usr/bin/php /caminho/completo/para/seu/projeto/admin/check_mp_payments_cron.php >> /caminho/completo/para/seu/projeto/admin/logs/mp_cron.log 2>&1
- */
+ *  *///5 * * * * /usr/bin/php /caminho/completo/para/seu/projeto/admin/check_mp_payments_cron.php >> /caminho/completo/para/seu/projeto/admin/logs/mp_cron.log 2>&1
+ 
 
 // Configurar error reporting e logging
 error_reporting(E_ALL);
