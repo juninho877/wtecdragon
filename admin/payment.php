@@ -86,6 +86,8 @@ if ($paymentCreatedAt && (time() - $paymentCreatedAt > 1800)) { // 30 minutos em
     unset($_SESSION['payment_qr_code']);
     unset($_SESSION['payment_created_at']);
     unset($_SESSION['payment_id']);
+    unset($_SESSION['payment_months']);
+    unset($_SESSION['payment_amount']);
     $paymentInProgress = false;
 }
 error_log("Payment.php - QR Code Expired: " . ($qrCodeExpired ? 'Yes' : 'No'));
@@ -100,8 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $totalAmount = $amount;
         
         error_log("Payment.php - Attempting to create payment for {$months} months, amount: {$totalAmount}");
+        error_log("Payment.php - POST data: " . print_r($_POST, true));
+        
         // Criar pagamento
         $result = $mercadoPago->createSubscriptionPayment($userId, $totalAmount, $months);
+        error_log("Payment.php - Create payment result: " . print_r($result, true));
         
         if ($result['success']) {
             $_SESSION['payment_qr_code'] = $result['qr_code'];
@@ -110,11 +115,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['payment_months'] = $months;
             $_SESSION['payment_amount'] = $totalAmount;
             
+            error_log("Payment.php - Payment created successfully. QR Code stored in session.");
+            
             // Redirecionar para evitar reenvio do formulário
             header('Location: payment.php' . ($isExpiredRedirect ? '?expired=true' : ''));
             exit;
         } else {
             $errorMessage = $result['message'];
+            error_log("Payment.php - Error creating payment: " . $errorMessage);
         }
     } elseif ($_POST['action'] === 'cancel_payment') {
         // Limpar dados do pagamento
@@ -123,6 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         unset($_SESSION['payment_id']);
         unset($_SESSION['payment_months']);
         unset($_SESSION['payment_amount']);
+        
+        error_log("Payment.php - Payment cancelled by user");
         
         // Redirecionar para evitar reenvio do formulário
         header('Location: payment.php' . ($isExpiredRedirect ? '?expired=true' : ''));
@@ -901,6 +911,14 @@ document.addEventListener('DOMContentLoaded', function() {
             discountElement.textContent = `R$ ${discount.toFixed(2).replace('.', ',')}`;
             totalElement.textContent = `R$ ${price.toFixed(2).replace('.', ',')}`;
             amountInput.value = price.toFixed(2);
+            
+            console.log("Updated payment form values:", {
+                months: months,
+                regularPrice: regularPrice,
+                discount: discount,
+                finalPrice: price,
+                amountInputValue: amountInput.value
+            });
         });
         
         // Trigger change event to initialize values
@@ -1103,6 +1121,18 @@ document.addEventListener('DOMContentLoaded', function() {
         clearInterval(checkPaymentInterval);
     });
     <?php endif; ?>
+    
+    // Log form submission for debugging
+    const paymentForm = document.getElementById('paymentForm');
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', function(e) {
+            console.log("Payment form submitted with values:", {
+                months: document.getElementById('months').value,
+                amount: document.getElementById('amount').value,
+                paymentMethod: document.querySelector('input[name="payment_method"]:checked').value
+            });
+        });
+    }
 });
 </script>
 
