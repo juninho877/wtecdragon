@@ -33,29 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $whatsappNumber,
                     $discount3Months,
                     $discount6Months,
-                    $discount12Months
+                    $discount12Months,
+                    $creditPrice,
+                    $minCreditPurchase
                 );
-                
-                // Atualizar configurações de crédito
-                if ($result['success']) {
-                    // Buscar configurações atuais
-                    $currentSettings = $mercadoPagoSettings->getSettings($userId);
-                    
-                    // Atualizar apenas as configurações de crédito
-                    $stmt = $mercadoPagoSettings->db->prepare("
-                        UPDATE mercadopago_settings 
-                        SET 
-                            credit_price = ?,
-                            min_credit_purchase = ?
-                        WHERE user_id = ?
-                    ");
-                    
-                    $stmt->execute([
-                        $creditPrice,
-                        $minCreditPurchase,
-                        $userId
-                    ]);
-                }
                 
                 $message = $result['message'];
                 $messageType = $result['success'] ? 'success' : 'error';

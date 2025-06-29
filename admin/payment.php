@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $totalAmount = $amount;
         
         // Criar pagamento
-        $result = $mercadoPago->createPayment($userId, $totalAmount, $months);
+        $result = $mercadoPago->createSubscriptionPayment($userId, $totalAmount, $months);
         
         if ($result['success']) {
             $_SESSION['payment_qr_code'] = $result['qr_code'];

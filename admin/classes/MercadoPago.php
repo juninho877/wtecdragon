@@ -53,14 +53,14 @@ class MercadoPago {
     }
     
     /**
-     * Criar um pagamento no Mercado Pago
+     * Criar um pagamento para assinatura no Mercado Pago
      * 
      * @param int $userId ID do usuário
      * @param float $amount Valor do pagamento
      * @param int $months Número de meses de assinatura
      * @return array Resultado da operação
      */
-    public function createPayment($userId, $amount, $months = 1) {
+    public function createSubscriptionPayment($userId, $amount, $months = 1) {
         try {
             // Buscar configurações do admin (ID 1)
             $adminSettings = $this->mercadoPagoSettings->getSettings(1);
@@ -107,7 +107,8 @@ class MercadoPago {
                     "email" => $userEmail,
                     "first_name" => $username,
                     "last_name" => "FutBanner"
-                ]
+                ],
+                "date_of_expiration" => date('Y-m-d\TH:i:s.000P', strtotime('+1 day'))
             ];
             
             $ch = curl_init();
@@ -183,6 +184,142 @@ class MercadoPago {
             
         } catch (Exception $e) {
             error_log("Erro ao criar pagamento: " . $e->getMessage());
+            return [
+                'success' => false, 
+                'message' => 'Erro interno: ' . $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
+     * Criar um pagamento para compra de créditos no Mercado Pago
+     * 
+     * @param int $userId ID do usuário
+     * @param string $description Descrição do pagamento
+     * @param float $amount Valor do pagamento
+     * @return array Resultado da operação
+     */
+    public function createCreditPayment($userId, $description, $amount) {
+        try {
+            // Buscar configurações do admin (ID 1)
+            $adminSettings = $this->mercadoPagoSettings->getSettings(1);
+            
+            if (!$adminSettings || empty($adminSettings['access_token'])) {
+                return [
+                    'success' => false, 
+                    'message' => 'Configurações do Mercado Pago não encontradas'
+                ];
+            }
+            
+            $accessToken = $adminSettings['access_token'];
+            
+            // Buscar dados do usuário
+            $stmt = $this->db->prepare("SELECT username, email FROM usuarios WHERE id = ?");
+            $stmt->execute([$userId]);
+            $userData = $stmt->fetch();
+            
+            if (!$userData) {
+                return [
+                    'success' => false, 
+                    'message' => 'Usuário não encontrado'
+                ];
+            }
+            
+            $username = $userData['username'];
+            $userEmail = $userData['email'] ?? "usuario{$userId}@futbanner.com";
+            
+            // Criar referência externa única
+            $externalReference = "CREDIT_{$userId}_" . time();
+            
+            // Criar pagamento Pix
+            $url = "https://api.mercadopago.com/v1/payments";
+            
+            $paymentData = [
+                "transaction_amount" => floatval($amount),
+                "description" => $description,
+                "external_reference" => $externalReference,
+                "payment_method_id" => "pix",
+                "payer" => [
+                    "email" => $userEmail,
+                    "first_name" => $username,
+                    "last_name" => "FutBanner"
+                ],
+                "date_of_expiration" => date('Y-m-d\TH:i:s.000P', strtotime('+1 day'))
+            ];
+            
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $accessToken,
+                    'Content-Type: application/json'
+                ],
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($paymentData),
+                CURLOPT_SSL_VERIFYPEER => true
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            
+            curl_close($ch);
+            
+            if ($response === false) {
+                return [
+                    'success' => false, 
+                    'message' => 'Erro na conexão com o Mercado Pago: ' . $error
+                ];
+            }
+            
+            $payment = json_decode($response, true);
+            
+            if ($httpCode !== 201) {
+                $errorMessage = isset($payment['message']) ? $payment['message'] : 'Erro desconhecido';
+                return [
+                    'success' => false, 
+                    'message' => 'Erro ao criar pagamento: ' . $errorMessage,
+                    'http_code' => $httpCode
+                ];
+            }
+            
+            if (!isset($payment['id']) || !isset($payment['point_of_interaction']['transaction_data']['qr_code_base64'])) {
+                return [
+                    'success' => false, 
+                    'message' => 'Resposta inválida do Mercado Pago'
+                ];
+            }
+            
+            // Extrair dados do QR Code
+            $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'];
+            $qrCode = "data:image/png;base64," . $qrCodeBase64;
+            
+            // Registrar o pagamento no banco de dados
+            $stmt = $this->db->prepare("
+                INSERT INTO mercadopago_payments 
+                (user_id, payment_id, preference_id, external_reference, status, transaction_amount) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            
+            $stmt->execute([
+                $userId,
+                $payment['id'],
+                $payment['id'], // Usando payment_id como preference_id
+                $externalReference,
+                $payment['status'],
+                $amount
+            ]);
+            
+            return [
+                'success' => true,
+                'payment_id' => $payment['id'],
+                'qr_code' => $qrCode,
+                'amount' => $amount
+            ];
+            
+        } catch (Exception $e) {
+            error_log("Erro ao criar pagamento para créditos: " . $e->getMessage());
             return [
                 'success' => false, 
                 'message' => 'Erro interno: ' . $e->getMessage()
