@@ -1,4 +1,4 @@
-<?php
+<?php ob_start(); // Start output buffering at the very beginning
 session_start();
 if (!isset($_SESSION["usuario"]) && !isset($_SESSION["temp_user_id"])) {
     header("Location: login.php");
@@ -1094,3 +1094,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <?php include "includes/footer.php"; ?>
+<?php ob_end_flush(); // End output buffering and send content ?>
