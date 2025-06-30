@@ -127,67 +127,91 @@ try {
     $categoria = implode(" • ", array_slice(array_column($mediaData['genres'], 'name'), 0, 3));
     $sinopse = $mediaData['overview'];
     $poster = "https://image.tmdb.org/t/p/w500" . $mediaData['poster_path'];
-    $backdropUrl = "https://image.tmdb.org/t/p/w1280" . $mediaData['backdrop_path'];
+    $backdropUrl = "https://image.tmdb.org/t/p/w1280" . $mediaData['poster_path'];
     $atores = array_slice($elencoData['cast'], 0, 5);
     
-    $maxSinopseLength = 300;
-    if (strlen($sinopse) > $maxSinopseLength) {
-        $sinopse = substr($sinopse, 0, $maxSinopseLength) . '...';
+    $maxSinopseLength = 180;
+if (strlen($sinopse) > $maxSinopseLength) {
+    $sinopse = substr($sinopse, 0, $maxSinopseLength) . '...';
+}
+$imageWidth = 912;
+$imageHeight = 1280;
+$image = imagecreatetruecolor($imageWidth, $imageHeight);
+// Copia a imagem de fundo
+$backgroundImage = imagecreatefromjpeg($backdropUrl);
+imagecopyresampled($image, $backgroundImage, 0, 0, 0, 0, $imageWidth, $imageHeight, imagesx($backgroundImage), imagesy($backgroundImage));
+imagedestroy($backgroundImage);
+
+// --- INÍCIO DO CÓDIGO DO GRADIENTE COM DUAS PARTES ---
+
+// 1. Criar imagem temporária para o gradiente
+$gradientImage = imagecreatetruecolor(1, $imageHeight);
+imagealphablending($gradientImage, false);
+imagesavealpha($gradientImage, true);
+
+// 2. Definir os 3 pontos de controle da transparência
+// Lembre-se: 0 = Opaco, 127 = Transparente
+$alphaTopo = 127; // Totalmente transparente no topo da imagem
+$alphaMeio = 55;  // Meio transparente no centro da imagem
+$alphaBase = 10;  // Bem opaco (escuro) na base da imagem
+
+// 3. Desenhar o gradiente na imagem de 1px, usando a lógica condicional
+$pontoMedio = $imageHeight / 2;
+
+for ($y = 0; $y < $imageHeight; $y++) {
+    
+    $alphaAtual = 0;
+
+    // VERIFICA SE ESTAMOS NA METADE DE BAIXO DA IMAGEM
+    if ($y >= $pontoMedio) {
+        // Calcula o progresso APENAS na metade de baixo (de 0.0 a 1.0)
+        $progressoNaMetade = ($y - $pontoMedio) / $pontoMedio;
+        // Interpola entre a cor do Meio e a cor da Base
+        $alphaAtual = $alphaMeio + ($progressoNaMetade * ($alphaBase - $alphaMeio));
+    } 
+    // SE ESTAMOS NA METADE DE CIMA
+    else {
+        // Calcula o progresso APENAS na metade de cima (de 0.0 a 1.0)
+        $progressoNaMetade = $y / $pontoMedio;
+        // Interpola entre a cor do Topo e a cor do Meio
+        $alphaAtual = $alphaTopo + ($progressoNaMetade * ($alphaMeio - $alphaTopo));
     }
-    
-    $imageWidth = 1280;
-    $imageHeight = 853;
-    $image = imagecreatetruecolor($imageWidth, $imageHeight);
-    
-    $backgroundImage = @imagecreatefromjpeg($backdropUrl);
-    if ($backgroundImage === false) {
-        throw new Exception("Erro ao carregar imagem de fundo");
-    }
-    
-    imagecopyresampled($image, $backgroundImage, 0, 0, 0, 0, $imageWidth, $imageHeight, imagesx($backgroundImage), imagesy($backgroundImage));
-    
-    $intensidadeBase = 70;
-    $numPassos = 5;  
-    $deslocamento = 1; 
-    for ($i = 0; $i < $numPassos; $i++) {
-        $alfa = min(127, $intensidadeBase + ($i * ( (127 - $intensidadeBase) / ($numPassos - 1) )) );
-        $corSombraDesfocada = imagecolorallocatealpha($image, 0, 0, 0, $alfa);
-        imagefilledrectangle(
-            $image,
-            -$i * $deslocamento,
-            -$i * $deslocamento,
-            $imageWidth + $i * $deslocamento,
-            $imageHeight + $i * $deslocamento,
-            $corSombraDesfocada
-        );
-    }
-    $sombraCentralAlfa = min(127, $intensidadeBase + 10);
-    $corSombraCentral = imagecolorallocatealpha($image, 0, 0, 0, $sombraCentralAlfa);
-    imagefilledrectangle($image, 0, 0, $imageWidth, $imageHeight, $corSombraCentral);
-    
-    $whiteColor = imagecolorallocate($image, 255, 255, 255);
-    $yellowColor = imagecolorallocate($image, 255, 215, 0);
-    $fontPath = __DIR__ . '/fonts/dejavu-sans-bold.ttf';
-    $fontSize = 20;
-    
-    function wrapText($text, $font, $fontSize, $maxWidth) {
-        $wrappedText = '';
-        $words = explode(' ', $text);
-        $line = '';
-        foreach ($words as $word) {
-            $testLine = $line . ' ' . $word;
-            $testBox = imagettfbbox($fontSize, 0, $font, $testLine);
-            $testWidth = $testBox[2] - $testBox[0];
-            if ($testWidth <= $maxWidth) {
-                $line = $testLine;
-            } else {
-                $wrappedText .= trim($line) . "\n";
-                $line = $word;
-            }
+
+    // Cria e desenha o pixel com a transparência calculada
+    $corPixel = imagecolorallocatealpha($gradientImage, 50, 50, 50, round($alphaAtual));
+    imagesetpixel($gradientImage, 0, $y, $corPixel);
+}
+
+// 4. Esticar a imagem de gradiente sobre a imagem principal
+imagealphablending($image, true);
+imagecopyresized($image, $gradientImage, 0, 0, 0, 0, $imageWidth, $imageHeight, 1, $imageHeight);
+
+// 5. Liberar memória
+imagedestroy($gradientImage);
+
+// --- FIM DO CÓDIGO DO GRADIENTE ---
+$whiteColor = imagecolorallocate($image, 255, 255, 255);
+$yellowColor = imagecolorallocate($image, 255, 215, 0);
+$fontPath = __DIR__ . '/fonts/dejavu-sans-bold.ttf';
+$fontSize = 20;
+function wrapText($text, $font, $fontSize, $maxWidth) {
+    $wrappedText = '';
+    $words = explode(' ', $text);
+    $line = '';
+    foreach ($words as $word) {
+        $testLine = $line . ' ' . $word;
+        $testBox = imagettfbbox($fontSize, 0, $font, $testLine);
+        $testWidth = $testBox[2] - $testBox[0];
+        if ($testWidth <= $maxWidth) {
+            $line = $testLine;
+        } else {
+            $wrappedText .= trim($line) . "\n";
+            $line = $word;
         }
-        $wrappedText .= trim($line);
-        return $wrappedText;
     }
+    $wrappedText .= trim($line);
+    return $wrappedText;
+}
 
     // Carregar logo do usuário para banners de filmes/séries
     $userImage = new UserImage();
@@ -197,8 +221,8 @@ try {
     if ($logoContent !== false) {
         $icon = @imagecreatefromstring($logoContent);
         if ($icon !== false) {
-            $logoLarguraDesejada = 150;
-            $logoPosX = 6; $logoPosY = 10;
+            $logoLarguraDesejada = 300;
+            $logoPosX = 320; $logoPosY = 50;
             $logoWidthOriginal = imagesx($icon);
             $logoHeightOriginal = imagesy($icon);
             $logoHeight = (int)($logoHeightOriginal * ($logoLarguraDesejada / $logoWidthOriginal));
@@ -210,172 +234,236 @@ try {
         }
     }
 
-    $urlDispositivos = 'https://i.ibb.co/qLZQSbBp/Design-sem-nome-9.png';
-    $imgDispositivosResource = @imagecreatefrompng($urlDispositivos);
-    if ($imgDispositivosResource !== false) {
-        $imgDisX = 445;
-        $imgDisY = 685;
-        $imgDisWidth = 416;
-        $imgDisHeight = 96;
-        imagecopyresampled(
-            $image,
-            $imgDispositivosResource, 
-            $imgDisX,
-            $imgDisY,
-            0,
-            0,
-            $imgDisWidth,
-            $imgDisHeight,
-            imagesx($imgDispositivosResource), 
-            imagesy($imgDispositivosResource)
-        );
-        imagedestroy($imgDispositivosResource);
-    }
-    
-    $tipoFontSize = 24;
-    $fundoVermelho = imagecolorallocate($image, 255, 0, 0); 
-    $margemVerticalTipo = 10;
-    $margemHorizontalTipo = 20;
-    $tipoBox = imagettfbbox($tipoFontSize, 0, $fontPath, $tipoTexto);
-    $tipoLargura = abs($tipoBox [2] - $tipoBox [0]);
-    $tipoAltura = abs($tipoBox [7] - $tipoBox [1]);
-    $boxXTipo = 445;
-    $boxYTipo = 295;
-    $boxLarguraTipo = $tipoLargura + ($margemHorizontalTipo * 2);
-    $boxAlturaTipo = $tipoAltura + ($margemVerticalTipo * 2);
-    imagefilledrectangle($image, $boxXTipo, $boxYTipo, $boxXTipo + $boxLarguraTipo, $boxYTipo + $boxAlturaTipo, $fundoVermelho);
-    $textoXTipo = $boxXTipo + $margemHorizontalTipo;
-    $textoYTipo = $boxYTipo + $margemVerticalTipo + $tipoAltura;
-    imagettftext($image, $tipoFontSize, 0, $textoXTipo, $textoYTipo, $whiteColor, $fontPath, $tipoTexto);
-    
-    $textoFixo = ("JÁ DISPONÍVEL");
-    $fontSizeFixo = 38;
-    $posicaoX = 455;
-    $posicaoY = 165;
-    $textBoxFixo = imagettfbbox($fontSizeFixo, 0, $fontPath, $textoFixo);
-    $textoLargura = $textBoxFixo[2] - $textBoxFixo[0];
-    $fundoAmarelo = imagecolorallocate($image, 255, 215, 0);
-    $corPreta = imagecolorallocate($image, 0, 0, 0);
-    $margemVertical = -6;
-    $margemHorizontal = 10;
-    imagefilledrectangle(
+$urlDispositivos = 'https://i.ibb.co/kgxBXwk7/Kle.png';
+$imgDispositivosResource = imagecreatefrompng($urlDispositivos);
+if ($imgDispositivosResource !== false) {
+    $imgDisX = 0;
+    $imgDisY = 1050;
+    $imgDisWidth = 912;
+    $imgDisHeight = 210;
+    imagecopyresampled(
         $image,
-        $posicaoX - $margemHorizontal,
-        $posicaoY + $textBoxFixo[1] - $margemVertical,
-        $posicaoX + $textoLargura + $margemHorizontal,
-        $posicaoY + $textBoxFixo[7] + $margemVertical,
-        $fundoAmarelo
-    );
-    imagettftext($image, $fontSizeFixo, 0, $posicaoX, $posicaoY, $corPreta, $fontPath, $textoFixo);
-    
-    $tamanhoMaximoFonte = 33;
-    $tamanhoMinimoFonte = 7;
-    $larguraMaximaTitulo = $imageWidth - 460;
-    $posicaoX_titulo = 445;
-    $posterY = 80;
-    $posicaoY_titulo = $posterY + 165;
-    $tamanhoFonteFinal = $tamanhoMaximoFonte;
-    while ($tamanhoFonteFinal > $tamanhoMinimoFonte) {
-        $textBox = imagettfbbox($tamanhoFonteFinal, 0, $fontPath, $nome);
-        $larguraTexto = abs($textBox[2] - $textBox[0]);
-        if ($larguraTexto <= $larguraMaximaTitulo) {
-            break;
-        }
-        $tamanhoFonteFinal--;
-    }
-    imagettftext(
-        $image,
-        $tamanhoFonteFinal,
+        $imgDispositivosResource, 
+        $imgDisX,
+        $imgDisY,
         0,
-        $posicaoX_titulo,
-        $posicaoY_titulo,
-        $whiteColor,
-        $fontPath,
-        $nome
-    );
-    
-    $posterImage = @imagecreatefromjpeg($poster);
-    if ($posterImage !== false) {
-        $posterWidth = 400;
-        $posterHeight = 650;
-        $posterX = 10;
-        imagecopyresampled($image, $posterImage, $posterX, $posterY, 0, 0, $posterWidth, $posterHeight, imagesx($posterImage), imagesy($posterImage));
-        imagedestroy($posterImage);
-    }
-    
-    $tamanhoMaximoFonteCat = 25;
-    $tamanhoMinimoFonteCat = 10;
-    $larguraMaximaCategoria = $imageWidth - 600;
-    $posicaoX_cat = 600;
-    $posicaoY_cat = 330;
-    $tamanhoFonteFinalCat = $tamanhoMaximoFonteCat;
-    while ($tamanhoFonteFinalCat > $tamanhoMinimoFonteCat) {
-        $textBoxCat = imagettfbbox($tamanhoFonteFinalCat, 0, $fontPath, $categoria);
-        $larguraTextoCat = abs($textBoxCat[2] - $textBoxCat[0]);
-        if ($larguraTextoCat <= $larguraMaximaCategoria) {
-            break;
-        }
-        $tamanhoFonteFinalCat--;
-    }
-    imagettftext(
-        $image,
-        $tamanhoFonteFinalCat,
         0,
-        $posicaoX_cat,
-        $posicaoY_cat,
-        $whiteColor,
-        $fontPath,
-        $categoria
+        $imgDisWidth,
+        $imgDisHeight,
+        imagesx($imgDispositivosResource), 
+        imagesy($imgDispositivosResource)
     );
-    
-    $nota = $mediaData['vote_average'];
-    $notaFormatada = number_format($nota, 1, ',', '');
-    $estrelaCheia = '★';
-    $estrelaVazia = '☆';
-    $totalEstrelas = 10;
-    $numEstrelasCheias = round($nota);
-    $numEstrelasVazias = $totalEstrelas - $numEstrelasCheias;
-    $textoEstrelas = '';
-    for ($i = 0; $i < $numEstrelasCheias; $i++) {
-        $textoEstrelas .= $estrelaCheia;
+    imagedestroy($imgDispositivosResource);
+}
+
+
+imagettftext($image, 18, 0, 30, 430, $whiteColor, $fontPath, "Indicação da semana $tipoTexto");
+
+// --- CONFIGURAÇÕES DO TEXTO "INDICAÇÃO" ---
+
+// 1. Caminho para o arquivo da fonte .ttf
+//    Usar __DIR__ garante que o caminho estará sempre correto.
+$fontPathi = __DIR__ . '/fonts/BebasNeue-Regular.ttf';
+
+// 2. Textos, tamanho da fonte e cor
+$text1 = "INDI";
+$text2 = "CAÇÃO"; // A string deve estar em UTF-8
+$fontSizei = 100;  // Um tamanho grande para dar impacto. Ajuste conforme seu banner.
+$corBranca = imagecolorallocate($image, 255, 255, 255);
+
+// 3. Posição inicial e espaçamentos (AJUSTE AQUI)
+$posicaoX = 365; // Posição X onde o bloco de texto começa
+$posicaoY = 590; // Posição Y da linha de base da PRIMEIRA linha ("INDI")
+
+// Espaçamento vertical entre as linhas. Um valor menor que o tamanho
+// da fonte fará com que as linhas fiquem mais próximas.
+$lineHeight = 105; 
+
+// --- DESENHANDO O TEXTO ---
+
+// Desenha a primeira linha: "INDI"
+imagettftext(
+    $image,      // A imagem do banner
+    $fontSizei,   // Tamanho da fonte
+    0,           // Ângulo do texto (0 para horizontal)
+    $posicaoX,   // Posição X
+    $posicaoY,   // Posição Y (linha de base do texto)
+    $corBranca,  // Cor do texto
+    $fontPathi,   // Caminho para o arquivo .ttf
+    $text1       // O texto a ser escrito
+);
+
+// Calcula a posição Y da segunda linha
+$posicaoY_linha2 = $posicaoY + $lineHeight;
+
+// Desenha a segunda linha: "CAÇÃO"
+imagettftext(
+    $image,
+    $fontSizei,
+    0,
+    $posicaoX,         // Começa na mesma posição X para alinhar à esquerda
+    $posicaoY_linha2,  // Usa a nova posição Y calculada
+    $corBranca,
+    $fontPathi,
+    $text2
+);
+
+
+$tamanhoMaximoFonte = 33;
+$tamanhoMinimoFonte = 7;
+$larguraMaximaTitulo = $imageWidth - 460;
+$posicaoX_titulo = 375;
+$posicaoY_titulo = 770;
+$tamanhoFonteFinal = $tamanhoMaximoFonte;
+while ($tamanhoFonteFinal > $tamanhoMinimoFonte) {
+    $textBox = imagettfbbox($tamanhoFonteFinal, 0, $fontPath, $nome);
+    $larguraTexto = abs($textBox[2] - $textBox[0]);
+    if ($larguraTexto <= $larguraMaximaTitulo) {
+        break;
     }
-    for ($i = 0; $i < $numEstrelasVazias; $i++) {
-        $textoEstrelas .= $estrelaVazia;
+    $tamanhoFonteFinal--;
+}
+imagettftext(
+    $image,
+    $tamanhoFonteFinal,
+    0,
+    $posicaoX_titulo,
+    $posicaoY_titulo,
+    $whiteColor,
+    $fontPath,
+    $nome
+);
+$proximoElementoY = $posicaoY_titulo + 40;
+// --- Seu código original para o pôster ---
+$posterImage = imagecreatefromjpeg($poster);
+$frameWidth = 340;
+$frameHeight = 510;
+$posterWidth = $frameWidth -20;
+$posterHeight = $frameHeight -80;
+$frameX = 10;
+$frameY = 450;
+$posterX = $frameX +10;
+$posterY = $frameY +40;
+// Desenha o pôster na imagem base
+imagecopyresampled(
+    $image,
+    $posterImage,
+    $posterX,
+    $posterY,
+    0,
+    0,
+    $posterWidth,
+    $posterHeight,
+    imagesx($posterImage),
+    imagesy($posterImage)
+);
+
+// --- Novo código para adicionar a MOLDURA por cima ---
+
+// 1. URL da imagem da moldura
+$frameUrl = 'https://i.ibb.co/qLJLQkC5/aaaaa.png';
+
+// 2. Carrega a imagem da moldura a partir da URL
+$frameImage = imagecreatefrompng($frameUrl);
+
+// 3. (MUITO IMPORTANTE) Habilita o canal alfa para preservar a transparência do PNG
+imagealphablending($image, true);
+imagesavealpha($image, true);
+
+// 4. Define a posição e o tamanho da moldura (os mesmos do pôster)
+
+
+
+// 5. Copia e redimensiona a moldura por cima do pôster na imagem final
+imagecopyresampled(
+    $image,        // Imagem de destino
+    $frameImage,   // Imagem de origem (a moldura)
+    $frameX,       // Posição X na destino
+    $frameY,       // Posição Y na destino
+    0,             // Posição X na origem
+    0,             // Posição Y na origem
+    $frameWidth,   // Largura final na destino
+    $frameHeight,  // Altura final na destino
+    imagesx($frameImage), // Largura original da moldura
+    imagesy($frameImage)  // Altura original da moldura
+);
+
+// 6. Libera a memória das imagens carregadas
+imagedestroy($posterImage);
+imagedestroy($frameImage);
+$infoY = $posterY + $posterHeight + 50;
+$tamanhoMaximoFonteCat = 22;
+$tamanhoMinimoFonteCat = 10;
+$larguraMaximaCategoria = $imageWidth - 380;
+$posicaoX_cat = 375;
+$posicaoY_cat = 838;
+$tamanhoFonteFinalCat = $tamanhoMaximoFonteCat;
+while ($tamanhoFonteFinalCat > $tamanhoMinimoFonteCat) {
+    $textBoxCat = imagettfbbox($tamanhoFonteFinalCat, 0, $fontPath, $categoria);
+    $larguraTextoCat = abs($textBoxCat[2] - $textBoxCat[0]);
+    if ($larguraTextoCat <= $larguraMaximaCategoria) {
+        break;
     }
-    $posicaoX_estrelas = 450;
-    $posicaoY_estrelas = 285;
-    $fontSizeEstrelas = 28;
-    $fontSizeNota = 24;
-    imagettftext(
-        $image,
-        $fontSizeEstrelas,
-        0,
-        $posicaoX_estrelas,
-        $posicaoY_estrelas,
-        $yellowColor,
-        $fontPath,
-        $textoEstrelas
-    );
-    $boxEstrelas = imagettfbbox($fontSizeEstrelas, 0, $fontPath, $textoEstrelas);
-    $larguraEstrelas = $boxEstrelas[2] - $boxEstrelas[0];
-    $posicaoX_nota = $posicaoX_estrelas + $larguraEstrelas + 15; 
-    imagettftext(
-        $image,
-        $fontSizeNota,
-        0,
-        $posicaoX_nota,
-        $posicaoY_estrelas,
-        $whiteColor,
-        $fontPath,
-        $notaFormatada
-    );
-    
-    $maxWidth = $imageWidth - 460;
-    $wrappedSinopse = wrapText($sinopse, $fontPath, $fontSize, $maxWidth);
-    imagettftext($image, $fontSize, 0, 445, 390, $whiteColor, $fontPath, $wrappedSinopse); 
-    
-    imagettftext($image, 20, 0, 215, $imageHeight - 30, $whiteColor, $fontPath, "O MELHOR DO STREAMING VOCÊ SÓ ENCONTRA AQUI");
-    imagettftext($image, 16, 0, 445, $imageHeight - 180, $whiteColor, $fontPath, "DISPONÍVEL EM DIVERSOS APARELHOS");
+    $tamanhoFonteFinalCat--;
+}
+imagettftext(
+    $image,
+    $tamanhoFonteFinalCat,
+    0,
+    $posicaoX_cat,
+    $posicaoY_cat,
+    $whiteColor,
+    $fontPath,
+    $categoria
+);
+$nota = $mediaData['vote_average'];
+$notaFormatada = number_format($nota, 1, ',', '');
+$estrelaCheia = '★';
+$estrelaVazia = '☆';
+$totalEstrelas = 10;
+$numEstrelasCheias = round($nota);
+$numEstrelasVazias = $totalEstrelas - $numEstrelasCheias;
+$textoEstrelas = '';
+for ($i = 0; $i < $numEstrelasCheias; $i++) {
+    $textoEstrelas .= $estrelaCheia;
+}
+for ($i = 0; $i < $numEstrelasVazias; $i++) {
+    $textoEstrelas .= $estrelaVazia;
+}
+$posicaoX_estrelas = 375;
+$posicaoY_estrelas = 805;
+$fontSizeEstrelas = 22;
+$fontSizeNota = 20;
+imagettftext(
+    $image,
+    $fontSizeEstrelas,
+    0,
+    $posicaoX_estrelas,
+    $posicaoY_estrelas,
+    $yellowColor,
+    $fontPath,
+    $textoEstrelas
+);
+$boxEstrelas = imagettfbbox($fontSizeEstrelas, 0, $fontPath, $textoEstrelas);
+$larguraEstrelas = $boxEstrelas[2] - $boxEstrelas[0];
+$posicaoX_nota = $posicaoX_estrelas + $larguraEstrelas + 15; 
+imagettftext(
+    $image,
+    $fontSizeNota,
+    0,
+    $posicaoX_nota,
+    $posicaoY_estrelas,
+    $whiteColor,
+    $fontPath,
+    $notaFormatada
+);
+$maxWidth = $imageWidth - 380;
+$wrappedSinopse = wrapText($sinopse, $fontPath, 22, $maxWidth);
+imagettftext($image, 22, 0, 375, 878, $whiteColor, $fontPath, $wrappedSinopse); 
+$actorYPosition = $imageHeight - 180;
+$actorWidth = 100;
+$actorHeight = 150;
+$actorXPosition = 20;
     
     // Registrar estatística do banner gerado
     $bannerStats = new BannerStats();
@@ -412,7 +500,7 @@ try {
         <p class="page-subtitle">Tema 2 - <?php echo htmlspecialchars($nome); ?></p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Banner Preview -->
         <div class="lg:col-span-2">
             <div class="card">
