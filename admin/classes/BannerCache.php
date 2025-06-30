@@ -28,7 +28,7 @@ class BannerCache {
             cache_key VARCHAR(255) NOT NULL,
             file_path VARCHAR(500) NOT NULL,
             original_name VARCHAR(255) NOT NULL,
-            banner_type ENUM('football_1', 'football_2', 'football_3', 'movie_1', 'movie_2', 'movie_3') NOT NULL,
+            banner_type ENUM('football_1', 'football_2', 'football_3', 'football_4', 'movie_1', 'movie_2', 'movie_3') NOT NULL,
             grupo_index INT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             expires_at TIMESTAMP NOT NULL,
