@@ -336,19 +336,19 @@ class Database {
     // Método para inserir imagens padrão para usuários existentes
     private function insertDefaultImages() {
         $defaultImages = [
-            'logo_banner_1' => 'imgelementos/semlogo.png',
-            'logo_banner_2' => 'imgelementos/semlogo.png',
-            'logo_banner_3' => 'imgelementos/semlogo.png',
-            'logo_banner_4' => 'imgelementos/semlogo.png',
-            'logo_movie_banner' => 'imgelementos/semlogo.png', // Nova entrada para logos de filmes/séries
+            'logo_banner_1' => 'wtec/logo/logo_banner_1.png',
+            'logo_banner_2' => 'wtec/logo/logo_banner_2.png',
+            'logo_banner_3' => 'wtec/logo/logo_banner_3.png',
+            'logo_banner_4' => 'wtec/logo/logo_banner_4.png',
+            'logo_movie_banner' => 'wtec/logo/logo_banner_movie.png', 
             'background_banner_1' => 'wtec/Img/background_banner_1.png',
             'background_banner_2' => 'wtec/Img/background_banner_2.jpg',
             'background_banner_3' => 'wtec/Img/background_banner_3.png',
-            'background_banner_4' => 'wtec/Img/background_banner_3.png', // Usando o mesmo fundo do tema 3 como padrão
+            'background_banner_4' => 'wtec/Img/background_banner_4.png', 
             'card_banner_1' => 'wtec/card/card_banner_1.png',
             'card_banner_2' => 'wtec/card/card_banner_2.png',
             'card_banner_3' => 'wtec/card/card_banner_3.png',
-            'card_banner_4' => 'imgelementos/fundo_jogo.png' // Usando o fundo_jogo como padrão
+            'card_banner_4' => 'wtec/card/card_banner_4.png' 
         ];
         
         // Buscar usuários que não têm imagens configuradas
@@ -384,16 +384,16 @@ class Database {
         foreach ($usersWithoutMovieLogo as $user) {
             $stmt = $this->connection->prepare("
                 INSERT IGNORE INTO user_images (user_id, image_key, image_path, upload_type) 
-                VALUES (?, 'logo_movie_banner', 'imgelementos/semlogo.png', 'default')
+                VALUES (?, 'logo_movie_banner', 'wtec/logo/logo_banner_movie.png', 'default')
             ");
             $stmt->execute([$user['id']]);
         }
         
         // Adicionar novas imagens do tema 4 para usuários existentes
         $newImages = [
-            'logo_banner_4' => 'imgelementos/semlogo.png',
-            'background_banner_4' => 'wtec/Img/background_banner_3.png',
-            'card_banner_4' => 'imgelementos/fundo_jogo.png'
+            'logo_banner_4' => 'wtec/logo/logo_banner_4.png',
+            'background_banner_4' => 'wtec/Img/background_banner_4.png',
+            'card_banner_4' => 'wtec/card/card_banner_4.png'
         ];
         
         foreach ($newImages as $imageKey => $imagePath) {
