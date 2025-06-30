@@ -266,6 +266,9 @@ class TelegramService {
                 case 'football_3':
                     $bannerModel = 3;
                     break;
+                case 'football_4':
+                    $bannerModel = 4;
+                    break;                    
                 default:
                     return ['success' => false, 'message' => 'Tipo de banner inválido'];
             }
