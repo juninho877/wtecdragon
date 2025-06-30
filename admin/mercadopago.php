@@ -78,7 +78,7 @@ include "includes/header.php";
     <p class="page-subtitle">Configure a integração com o Mercado Pago para pagamentos</p>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <!-- Formulário de Configuração -->
     <div class="lg:col-span-2">
         <div class="card">
