@@ -829,7 +829,7 @@ try {
         let generatorFile;
         switch (themeNumber) {
             case 1:
-                generatorFile = 'gerar_banner1.php'; // Tema Premium (com cantos arredondados)
+                generatorFile = 'gerar_banner.php'; // Tema Premium (com cantos arredondados)
                 break;
             case 2:
                 generatorFile = 'gerar_banner2.php'; // Tema Moderno (horizontal)
