@@ -468,7 +468,7 @@ try {
         <p class="page-subtitle">Tema 3 - <?php echo htmlspecialchars($nome); ?></p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Banner Preview -->
         <div class="lg:col-span-2">
             <div class="card">
