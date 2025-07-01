@@ -141,13 +141,13 @@ try {
     $atores = array_slice($elencoData['cast'], 0, 5);
 
     // Limitar sinopse
-    $maxSinopseLength = 300;
+    $maxSinopseLength = 320;
     if (strlen($sinopse) > $maxSinopseLength) {
         $sinopse = substr($sinopse, 0, $maxSinopseLength) . '...';
     }
 
     // Configurações da imagem
-    $imageWidth = 980;
+    $imageWidth = 1024;
     $imageHeight = 1280;
     $image = imagecreatetruecolor($imageWidth, $imageHeight);
 
@@ -160,7 +160,7 @@ try {
     imagecopyresampled($image, $backgroundImage, 0, 0, 0, 0, $imageWidth, $imageHeight, imagesx($backgroundImage), imagesy($backgroundImage));
 
     // Aplicar overlay escuro
-    $intensidadeBase = 70;
+    $intensidadeBase = 80;
     $numPassos = 5;
     $deslocamento = 1;
 
@@ -250,48 +250,48 @@ try {
     if ($logoContent !== false) {
         $icon = @imagecreatefromstring($logoContent);
         if ($icon !== false) {
-            $iconWidth = 240;
-            $iconHeight = 240;
-            $iconX = 1000;
-            $iconY = 600;
+            $iconWidth = 270;
+            $iconHeight = 270;
+            $iconX = 620;
+            $iconY = 25;
             imagecopyresampled($image, $icon, $iconX, $iconY, 0, 0, $iconWidth, $iconHeight, imagesx($icon), imagesy($icon));
             imagedestroy($icon);
         }
     }
 
     // Adicionar imagem de dispositivos
-    $urlDispositivos = 'https://i.ibb.co/6csWNSxN/dispImg.png';
-    $imgDispositivosResource = @imagecreatefrompng($urlDispositivos);
-    if ($imgDispositivosResource !== false) {
-        $imgDisX = 700;
-        $imgDisY = 1130;
-        $imgDisWidth = 285;
-        $imgDisHeight = 205;
-        imagecopyresampled(
-            $image,
-            $imgDispositivosResource,
-            $imgDisX,
-            $imgDisY,
-            0,
-            0,
-            $imgDisWidth,
-            $imgDisHeight,
-            imagesx($imgDispositivosResource),
-            imagesy($imgDispositivosResource)
-        );
-        imagedestroy($imgDispositivosResource);
-    }
+//    $urlDispositivos = 'https://i.ibb.co/6csWNSxN/dispImg.png';
+//    $imgDispositivosResource = @imagecreatefrompng($urlDispositivos);
+//    if ($imgDispositivosResource !== false) {
+//        $imgDisX = 700;
+//        $imgDisY = 1130;
+//        $imgDisWidth = 285;
+//        $imgDisHeight = 205;
+//        imagecopyresampled(
+//            $image,
+//            $imgDispositivosResource,
+//            $imgDisX,
+//            $imgDisY,
+//            0,
+//            0,
+//            $imgDisWidth,
+//            $imgDisHeight,
+//            imagesx($imgDispositivosResource),
+//            imagesy($imgDispositivosResource)
+//        );
+//        imagedestroy($imgDispositivosResource);
+//    }
 
     // Adicionar texto "TIPO"
-    $tipoFontSize = 38;
+    $tipoFontSize = 40;
     $fundoVermelho = imagecolorallocate($image, 255, 0, 0);
     $margemVerticalTipo = 10;
     $margemHorizontalTipo = 20;
     $tipoBox = imagettfbbox($tipoFontSize, 0, $fontPath, $tipoTexto);
     $tipoLargura = abs($tipoBox[2] - $tipoBox[0]);
     $tipoAltura = abs($tipoBox[7] - $tipoBox[1]);
-    $boxXTipo = 45;
-    $boxYTipo = 155;
+    $boxXTipo = 410;
+    $boxYTipo = 1155;
     $boxLarguraTipo = $tipoLargura + ($margemHorizontalTipo * 2);
     $boxAlturaTipo = $tipoAltura + ($margemVerticalTipo * 2);
     imagefilledrectangle($image, $boxXTipo, $boxYTipo, $boxXTipo + $boxLarguraTipo, $boxYTipo + $boxAlturaTipo, $fundoVermelho);
@@ -300,32 +300,32 @@ try {
     imagettftext($image, $tipoFontSize, 0, $textoXTipo, $textoYTipo, $whiteColor, $fontPath, $tipoTexto);
 
     // Adicionar texto "JÁ DISPONÍVEL"
-    $textoFixo = "JÁ DISPONÍVEL";
-    $fontSizeFixo = 38;
-    $posicaoX = 55;
-    $posicaoY = 120;
-    $textBoxFixo = imagettfbbox($fontSizeFixo, 0, $fontPath, $textoFixo);
-    $textoLargura = $textBoxFixo[2] - $textBoxFixo[0];
-    $fundoAmarelo = imagecolorallocate($image, 255, 215, 0);
-    $corPreta = imagecolorallocate($image, 0, 0, 0);
-    $margemVertical = -6;
-    $margemHorizontal = 10;
-    imagefilledrectangle(
-        $image,
-        $posicaoX - $margemHorizontal,
-        $posicaoY + $textBoxFixo[1] - $margemVertical,
-        $posicaoX + $textoLargura + $margemHorizontal,
-        $posicaoY + $textBoxFixo[7] + $margemVertical,
-        $fundoAmarelo
-    );
-    imagettftext($image, $fontSizeFixo, 0, $posicaoX, $posicaoY, $corPreta, $fontPath, $textoFixo);
+//    $textoFixo = "JÁ DISPONÍVEL";
+//    $fontSizeFixo = 38;
+//    $posicaoX = 55;
+//    $posicaoY = 120;
+//    $textBoxFixo = imagettfbbox($fontSizeFixo, 0, $fontPath, $textoFixo);
+//    $textoLargura = $textBoxFixo[2] - $textBoxFixo[0];
+//    $fundoAmarelo = imagecolorallocate($image, 255, 215, 0);
+//    $corPreta = imagecolorallocate($image, 0, 0, 0);
+//    $margemVertical = -6;
+//    $margemHorizontal = 10;
+//    imagefilledrectangle(
+//        $image,
+//        $posicaoX - $margemHorizontal,
+//        $posicaoY + $textBoxFixo[1] - $margemVertical,
+//        $posicaoX + $textoLargura + $margemHorizontal,
+//        $posicaoY + $textBoxFixo[7] + $margemVertical,
+//        $fundoAmarelo
+//    );
+//    imagettftext($image, $fontSizeFixo, 0, $posicaoX, $posicaoY, $corPreta, $fontPath, $textoFixo);
 
     // Adicionar título
     $tamanhoMaximoFonte = 33;
     $tamanhoMinimoFonte = 7;
-    $larguraMaximaTitulo = $imageWidth - 460;
-    $posicaoX_titulo = 445;
-    $posicaoY_titulo = 245;
+    $larguraMaximaTitulo = $imageWidth - 520;
+    $posicaoX_titulo = 500;
+    $posicaoY_titulo = 350;
     $tamanhoFonteFinal = $tamanhoMaximoFonte;
     while ($tamanhoFonteFinal > $tamanhoMinimoFonte) {
         $textBox = imagettfbbox($tamanhoFonteFinal, 0, $fontPath, $nome);
@@ -346,25 +346,69 @@ try {
         $nome
     );
 
-    // Adicionar poster
-    $posterY = 285;
-    $posterImage = @imagecreatefromjpeg($poster);
-    if ($posterImage !== false) {
-        $posterWidth = 400;
-        $posterHeight = 650;
-        $posterX = 25;
-        $posterImageRounded = applyRoundedCorners($posterImage, 20);
-        imagecopyresampled($image, $posterImageRounded, $posterX, $posterY, 0, 0, $posterWidth, $posterHeight, imagesx($posterImageRounded), imagesy($posterImageRounded));
-        imagedestroy($posterImage);
-        imagedestroy($posterImageRounded);
-    }
+$posterImage = imagecreatefromjpeg($poster);
+$frameWidth = 1024;
+$frameHeight = 1280;
+$posterWidth = 400;
+$posterHeight = 580;
+$frameX = 0;
+$frameY = 0;
+$posterX = 65;
+$posterY = 320;
+// Desenha o pôster na imagem base
+imagecopyresampled(
+    $image,
+    $posterImage,
+    $posterX,
+    $posterY,
+    0,
+    0,
+    $posterWidth,
+    $posterHeight,
+    imagesx($posterImage),
+    imagesy($posterImage)
+);
+
+// --- Novo código para adicionar a MOLDURA por cima ---
+
+// 1. URL da imagem da moldura
+$frameUrl = 'https://i.ibb.co/848y8WXk/Moldura.png';
+
+// 2. Carrega a imagem da moldura a partir da URL
+$frameImage = imagecreatefrompng($frameUrl);
+
+// 3. (MUITO IMPORTANTE) Habilita o canal alfa para preservar a transparência do PNG
+imagealphablending($image, true);
+imagesavealpha($image, true);
+
+// 4. Define a posição e o tamanho da moldura (os mesmos do pôster)
+
+
+
+// 5. Copia e redimensiona a moldura por cima do pôster na imagem final
+imagecopyresampled(
+    $image,        // Imagem de destino
+    $frameImage,   // Imagem de origem (a moldura)
+    $frameX,       // Posição X na destino
+    $frameY,       // Posição Y na destino
+    0,             // Posição X na origem
+    0,             // Posição Y na origem
+    $frameWidth,   // Largura final na destino
+    $frameHeight,  // Altura final na destino
+    imagesx($frameImage), // Largura original da moldura
+    imagesy($frameImage)  // Altura original da moldura
+);
+
+// 6. Libera a memória das imagens carregadas
+imagedestroy($posterImage);
+imagedestroy($frameImage);
 
     // Adicionar categoria
     $tamanhoMaximoFonteCat = 25;
     $tamanhoMinimoFonteCat = 10;
     $larguraMaximaCategoria = $imageWidth - 600;
-    $posicaoX_cat = 600;
-    $posicaoY_cat = 330;
+    $posicaoX_cat = 500;
+    $posicaoY_cat = 435;
     $tamanhoFonteFinalCat = $tamanhoMaximoFonteCat;
     while ($tamanhoFonteFinalCat > $tamanhoMinimoFonteCat) {
         $textBoxCat = imagettfbbox($tamanhoFonteFinalCat, 0, $fontPath, $categoria);
@@ -400,8 +444,8 @@ try {
     for ($i = 0; $i < $numEstrelasVazias; $i++) {
         $textoEstrelas .= $estrelaVazia;
     }
-    $posicaoX_estrelas = 450;
-    $posicaoY_estrelas = 285;
+    $posicaoX_estrelas = 500;
+    $posicaoY_estrelas = 390;
     $fontSizeEstrelas = 28;
     $fontSizeNota = 24;
     imagettftext(
@@ -429,9 +473,9 @@ try {
     );
 
     // Adicionar sinopse
-    $maxWidth = $imageWidth - 460;
+    $maxWidth = $imageWidth - 520;
     $wrappedSinopse = wrapText($sinopse, $fontPath, $fontSize, $maxWidth);
-    imagettftext($image, $fontSize, 0, 445, 390, $whiteColor, $fontPath, $wrappedSinopse);
+    imagettftext($image, $fontSize, 0, 500, 495, $whiteColor, $fontPath, $wrappedSinopse);
 
     // Registrar estatística do banner gerado
     $bannerStats = new BannerStats();
